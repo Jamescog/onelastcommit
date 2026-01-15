@@ -45,6 +45,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
       final remoteEvents = await remoteDataSource.getPushEvents(
         settings.username,
         etag: etag,
+        token: settings.githubToken,
       );
 
       if (remoteEvents.isNotEmpty) {

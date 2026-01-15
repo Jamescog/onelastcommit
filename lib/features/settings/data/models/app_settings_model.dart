@@ -3,6 +3,7 @@ import '../../domain/entities/app_settings.dart';
 class AppSettingsModel extends AppSettings {
   const AppSettingsModel({
     required super.username,
+    super.githubToken,
     required super.timezone,
     required super.remindersEnabled,
     required super.reminderTimes,
@@ -13,6 +14,7 @@ class AppSettingsModel extends AppSettings {
   factory AppSettingsModel.fromMap(Map<String, String> map) {
     return AppSettingsModel(
       username: map['username'] ?? '',
+      githubToken: map['github_token'] ?? '',
       timezone: map['timezone'] ?? 'UTC',
       remindersEnabled: map['reminders_enabled'] == 'true',
       reminderTimes: map['reminder_times']?.split(',') ?? [],
@@ -26,6 +28,7 @@ class AppSettingsModel extends AppSettings {
   Map<String, String> toMap() {
     return {
       'username': username,
+      'github_token': githubToken,
       'timezone': timezone,
       'reminders_enabled': remindersEnabled.toString(),
       'reminder_times': reminderTimes.join(','),

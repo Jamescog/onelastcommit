@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 class AppSettings extends Equatable {
   final String username;
+  final String githubToken;
   final String timezone;
   final bool remindersEnabled;
   final List<String> reminderTimes;
@@ -10,6 +11,7 @@ class AppSettings extends Equatable {
 
   const AppSettings({
     required this.username,
+    this.githubToken = '',
     required this.timezone,
     required this.remindersEnabled,
     required this.reminderTimes,
@@ -20,6 +22,7 @@ class AppSettings extends Equatable {
   @override
   List<Object?> get props => [
     username,
+    githubToken,
     timezone,
     remindersEnabled,
     reminderTimes,

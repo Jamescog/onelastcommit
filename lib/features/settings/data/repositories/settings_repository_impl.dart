@@ -25,6 +25,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     try {
       final model = AppSettingsModel(
         username: settings.username,
+        githubToken: settings.githubToken,
         timezone: settings.timezone,
         remindersEnabled: settings.remindersEnabled,
         reminderTimes: settings.reminderTimes,
@@ -45,6 +46,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       if (settings.installedAt == null) {
         final newSettings = AppSettingsModel(
           username: settings.username,
+          githubToken: settings.githubToken,
           timezone: settings.timezone,
           remindersEnabled: settings.remindersEnabled,
           reminderTimes: settings.reminderTimes,

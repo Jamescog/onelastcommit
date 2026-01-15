@@ -38,7 +38,10 @@ Future<void> init() async {
     () => TrackerRemoteDataSourceImpl(client: sl()),
   );
   sl.registerLazySingleton<TrackerLocalDataSource>(
-    () => TrackerLocalDataSourceImpl(sharedPreferences: sl()),
+    () => TrackerLocalDataSourceImpl(
+      sharedPreferences: sl(),
+      databaseService: sl(),
+    ),
   );
   sl.registerLazySingleton<TrackerRepository>(
     () => TrackerRepositoryImpl(

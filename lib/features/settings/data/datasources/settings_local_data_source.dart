@@ -15,9 +15,10 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   Future<AppSettingsModel> getSettings() async {
     return AppSettingsModel(
       username: sharedPreferences.getString('username') ?? '',
+      githubToken: sharedPreferences.getString('github_token') ?? '',
       timezone: sharedPreferences.getString('timezone') ?? 'UTC',
-      remindersEnabled: sharedPreferences.getBool('reminders_enabled') ?? false,
-      reminderTimes: sharedPreferences.getStringList('reminder_times') ?? [],
+      remindersEnabled: sharedPreferences.getBool('reminders_enabled') ?? true,
+      reminderTimes: sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
       trackWeekends: sharedPreferences.getBool('weekend_mode') ?? false,
       installedAt: sharedPreferences.getString('installed_at') != null
           ? DateTime.parse(sharedPreferences.getString('installed_at')!)
@@ -28,6 +29,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   @override
   Future<void> saveSettings(AppSettingsModel settings) async {
     await sharedPreferences.setString('username', settings.username);
+    await sharedPreferences.setString('github_token', settings.githubToken);
     await sharedPreferences.setString('timezone', settings.timezone);
     await sharedPreferences.setBool('reminders_enabled', settings.remindersEnabled);
     await sharedPreferences.setStringList('reminder_times', settings.reminderTimes);

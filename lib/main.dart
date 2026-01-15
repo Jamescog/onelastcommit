@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'injection_container.dart' as di;
 import 'core/util/notification_service.dart';
+import 'core/theme/app_theme.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
@@ -25,8 +26,9 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<TrackerBloc>()),
       ],
       child: MaterialApp(
-        title: 'OLC - GitHub Tracker',
-        theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.green),
+        title: 'OLC - One Last Commit',
+        theme: AppTheme.darkTheme,
+        debugShowCheckedModeBanner: false,
         home: const AppLanding(),
       ),
     );
@@ -41,7 +43,7 @@ class AppLanding extends StatelessWidget {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
         if (state is SettingsLoaded) {
-          if (state.settings.username.isEmpty) {
+          if (state.settings.username.isEmpty || state.settings.installedAt == null) {
             return const OnboardingPage();
           } else {
             return const HomePage();

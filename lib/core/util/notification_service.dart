@@ -16,9 +16,13 @@ class NotificationService {
       '@mipmap/ic_launcher',
     );
     const initializationSettingsIOS = DarwinInitializationSettings();
+    const initializationSettingsLinux = LinuxInitializationSettings(
+      defaultActionName: 'Open notification',
+    );
     const initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
+      linux: initializationSettingsLinux,
     );
     await _notifications.initialize(initializationSettings);
   }

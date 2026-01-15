@@ -1,4 +1,5 @@
-import 'dart:convert';
+import 'package:sqflite/sqflite.dart';
+import '../../../../core/util/db_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/commit_event_model.dart';
 
@@ -13,42 +14,37 @@ abstract class TrackerLocalDataSource {
 
 class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   final SharedPreferences sharedPreferences;
+  final DatabaseService databaseService;
 
-  TrackerLocalDataSourceImpl({required this.sharedPreferences});
+  TrackerLocalDataSourceImpl({
+    required this.sharedPreferences,
+    required this.databaseService,
+  });
 
   @override
   Future<List<CommitEventModel>> getLastEvents() async {
-    final jsonString = sharedPreferences.getString('commit_events');
-    if (jsonString == null) return [];
+    final db = await databaseService.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'commit_events',
+      orderBy: 'occurred_at_utc DESC',
+    );
 
-    final List<dynamic> maps = json.decode(jsonString);
-    final events = maps.map((m) => CommitEventModel.fromMap(m)).toList();
-    // Sort descending by date to match SQL behavior
-    events.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    return events;
+    return maps.map((m) => CommitEventModel.fromMap(m)).toList();
   }
 
   @override
   Future<void> cacheEvents(List<CommitEventModel> events) async {
-    // Get existing events
-    final currentEvents = await getLastEvents();
+    final db = await databaseService.database;
     
-    // Create a map for deduplication, keyed by event ID
-    final eventMap = {for (var e in currentEvents) e.id: e};
-
-    // Update with new events
-    for (var event in events) {
-      eventMap[event.id] = event;
-    }
-
-    // Convert back to list and sort
-    final allEvents = eventMap.values.toList();
-    allEvents.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-
-    // Serialize to JSON
-    // We need to cast the map for json encoding or ensure types are simple
-    final maps = allEvents.map((e) => e.toMap()).toList();
-    await sharedPreferences.setString('commit_events', json.encode(maps));
+    await db.transaction((txn) async {
+      for (var event in events) {
+        await txn.insert(
+          'commit_events',
+          event.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
   }
 
   @override
