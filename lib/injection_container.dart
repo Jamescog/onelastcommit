@@ -9,6 +9,7 @@ import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/data/datasources/fake_tracker_data_source.dart';
 import 'features/tracker/data/datasources/tracker_data_source.dart';
+import 'features/tracker/data/datasources/tracker_local_data_source.dart';
 import 'features/tracker/data/repositories/tracker_repository_impl.dart';
 import 'features/tracker/domain/repositories/tracker_repository.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
@@ -38,7 +39,10 @@ Future<void> init() async {
   sl.registerLazySingleton<TrackerDataSource>(
     () => const FakeTrackerDataSource(),
   );
+  sl.registerLazySingleton<TrackerLocalDataSource>(
+    () => TrackerLocalDataSourceImpl(databaseService: sl()),
+  );
   sl.registerLazySingleton<TrackerRepository>(
-    () => const TrackerRepositoryImpl(),
+    () => TrackerRepositoryImpl(remote: sl(), local: sl()),
   );
 }
