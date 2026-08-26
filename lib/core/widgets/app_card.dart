@@ -38,6 +38,11 @@ class AppCard extends StatelessWidget {
     final tones = tone?.resolve(context);
     final radius = BorderRadius.circular(AppRadius.lg);
 
+    // The accent edge is painted inside a Stack rather than as a Row child.
+    // A Row with CrossAxisAlignment.stretch needs a bounded height, which it
+    // never has inside a ListView — that threw during layout on every screen.
+    // A non-uniform Border is not an option either: BoxDecoration rejects one
+    // combined with a borderRadius.
     final decorated = DecoratedBox(
       decoration: BoxDecoration(
         color: tones?.background ?? t.surface,
@@ -46,14 +51,28 @@ class AppCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            if (accentEdge && tones != null)
-              Container(width: 3, color: tones.foreground),
-            Expanded(
-              child: Padding(padding: padding, child: child),
+            // A transparent Material *inside* the decoration, so ListTiles
+            // and other ink-splashing children paint onto the card's own
+            // surface rather than searching past it for an ancestor.
+            Material(
+              type: MaterialType.transparency,
+              child: Padding(
+                padding: accentEdge && tones != null
+                    ? padding.add(const EdgeInsets.only(left: 3))
+                    : padding,
+                child: child,
+              ),
             ),
+            if (accentEdge && tones != null)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                child: ColoredBox(color: tones.foreground),
+              ),
           ],
         ),
       ),

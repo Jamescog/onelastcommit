@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../features/settings/domain/entities/app_settings.dart';
 import '../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../features/tracker/presentation/bloc/tracker_bloc.dart';
 import '../../dev/dev_scenario.dart';
@@ -120,6 +121,32 @@ class DevPanel extends StatelessWidget {
                 title: const Text('Wipe and refetch'),
                 onTap: () =>
                     context.read<TrackerBloc>().add(const ResetTracker()),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Replay onboarding'),
+                // Clearing username and installedAt is all it takes: the
+                // router's redirect is the single thing deciding where the
+                // app opens, so it sends you back through the device flow.
+                subtitle: const Text('Sign out and walk the auth flow again'),
+                onTap: () {
+                  final state = context.read<SettingsBloc>().state;
+                  if (state is! SettingsLoaded) return;
+                  final s = state.settings;
+                  context.read<SettingsBloc>().add(
+                    UpdateSettings(
+                      AppSettings(
+                        username: '',
+                        timezone: s.timezone,
+                        remindersEnabled: s.remindersEnabled,
+                        reminderTimes: s.reminderTimes,
+                        trackWeekends: s.trackWeekends,
+                        themeMode: s.themeMode,
+                      ),
+                    ),
+                  );
+                },
               ),
               const Divider(height: 1),
               ListTile(
