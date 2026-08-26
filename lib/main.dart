@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/util/notification_service.dart';
+import 'core/widgets/dev/component_gallery_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
@@ -15,6 +16,10 @@ void main() async {
   await di.sl<NotificationService>().init();
   runApp(const MyApp());
 }
+
+/// Launch the component gallery instead of the app:
+/// `flutter run --dart-define=GALLERY=true`
+const bool _showGallery = bool.fromEnvironment('GALLERY');
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,7 +38,7 @@ class MyApp extends StatelessWidget {
         // Follows the device until the theme preference lands in settings.
         themeMode: ThemeMode.system,
         debugShowCheckedModeBanner: false,
-        home: const AppLanding(),
+        home: _showGallery ? const ComponentGalleryPage() : const AppLanding(),
       ),
     );
   }
