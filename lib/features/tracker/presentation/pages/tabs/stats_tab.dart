@@ -1,188 +1,176 @@
-// Still rendering from mock data. Rebuilt against TrackerBloc in commit 10.
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../core/data/mock_data.dart';
+import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_tokens.dart';
+import '../../../../../core/widgets/widgets.dart';
+import '../../bloc/tracker_bloc.dart';
+import '../../widgets/contribution_heatmap.dart';
+import '../../widgets/trend_chart.dart';
 
 class StatsTab extends StatelessWidget {
   const StatsTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildContributionGrid(context),
-        const SizedBox(height: 24),
-        _buildStatsCards(context),
-      ],
-    );
-  }
-
-  Widget _buildContributionGrid(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Contribution Activity',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            _ContributionGraph(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsCards(BuildContext context) {
-    final stats = MockData.contributionStats;
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                context,
-                'Total',
-                '${stats['totalContributions']}',
-                Icons.code,
-                context.tokens.info,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                context,
-                'This Month',
-                '${stats['thisMonth']}',
-                Icons.calendar_month,
-                context.tokens.accent,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                context,
-                'Current Streak',
-                '${stats['currentStreak']} days',
-                Icons.local_fire_department,
-                context.tokens.danger,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                context,
-                'Best Streak',
-                '${stats['longestStreak']} days',
-                Icons.emoji_events,
-                context.tokens.accent,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-      ),
+    return BlocBuilder<TrackerBloc, TrackerState>(
+      builder: (context, state) {
+        if (state is TrackerLoaded) return _Loaded(state: state);
+        if (state is TrackerFailure) {
+          return ErrorStateView(
+            title: 'Stats unavailable',
+            message: state.message,
+            onRetry: () => context.read<TrackerBloc>().add(const SyncTracker()),
+          );
+        }
+        if (state is TrackerEmpty) {
+          return const EmptyStateView(
+            icon: Icons.insights_outlined,
+            title: 'No stats yet',
+            message: 'Fetch your history from the Today tab first.',
+          );
+        }
+        return const _StatsSkeleton();
+      },
     );
   }
 }
 
-class _ContributionGraph extends StatelessWidget {
+class _Loaded extends StatelessWidget {
+  const _Loaded({required this.state});
+
+  final TrackerLoaded state;
+
   @override
   Widget build(BuildContext context) {
-    final contributions = MockData.contributionMap;
-    final sortedDates = contributions.keys.toList()..sort();
-    final recentDates = sortedDates.reversed
-        .take(91)
-        .toList()
-        .reversed
-        .toList();
+    final streak = state.streak;
+    final days = state.calendar;
+    final recent = days.length > 90 ? days.sublist(days.length - 90) : days;
+    final total = days.fold<int>(0, (s, d) => s + d.count);
+    final active = days.where((d) => d.hasContributions).length;
+    final uncounted = days.fold<int>(0, (s, d) => s + d.uncountedPushes);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = 13;
-        final rows = 7;
-        final cellSize = (constraints.maxWidth - (columns - 1) * 4) / columns;
-
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: columns * cellSize + (columns - 1) * 4,
-            height: rows * cellSize + (rows - 1) * 4,
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              scrollDirection: Axis.horizontal,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: rows,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-                childAspectRatio: 1,
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        // A headline number is not a chart. Three of them beat a bar chart of
+        // three bars.
+        AppCard(
+          child: StatTileRow(
+            tiles: [
+              StatTile(
+                value: '${streak.current}',
+                label: 'Current streak',
+                tone: streak.current > 0 ? AppTone.accent : AppTone.danger,
+                emphasis: StatEmphasis.compact,
               ),
-              itemCount: recentDates.length,
-              itemBuilder: (context, index) {
-                final date = recentDates[index];
-                final count = contributions[date] ?? 0;
+              StatTile(
+                value: '${streak.longest}',
+                label: 'Longest',
+                emphasis: StatEmphasis.compact,
+              ),
+              StatTile(
+                value: '$total',
+                label: 'Contributions',
+                emphasis: StatEmphasis.compact,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: _getContributionColor(context, count),
-                    borderRadius: BorderRadius.circular(3),
+        const SectionHeader(
+          title: 'Contribution graph',
+          subtitle: 'The same days GitHub counts, in the same five steps.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          child: ContributionHeatmap(days: days, atRiskToday: streak.atRisk),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+
+        const SectionHeader(
+          title: 'Daily contributions',
+          subtitle: 'Last 90 days.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(child: TrendChart(values: [for (final d in recent) d.count])),
+        const SizedBox(height: AppSpacing.xxl),
+
+        const SectionHeader(title: 'Consistency'),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          child: StatTileRow(
+            tiles: [
+              StatTile(
+                value: days.isEmpty
+                    ? '—'
+                    : '${(active / days.length * 100).round()}%',
+                label: 'Days active',
+                emphasis: StatEmphasis.compact,
+              ),
+              StatTile(
+                value: '${streak.weekTotal}',
+                label: 'This week',
+                emphasis: StatEmphasis.compact,
+              ),
+              StatTile(
+                value: '${streak.monthTotal}',
+                label: 'This month',
+                emphasis: StatEmphasis.compact,
+              ),
+            ],
+          ),
+        ),
+
+        if (uncounted > 0) ...[
+          const SizedBox(height: AppSpacing.lg),
+          // The number no other GitHub client will show you.
+          AppCard(
+            tone: AppTone.warning,
+            accentEdge: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$uncounted pushes never counted',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: context.tokens.warning,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Work on feature branches, in forks, or committed from an '
+                  'unregistered email earns no square. Check the Repos tab '
+                  'to see where.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.tokens.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ],
+        const SizedBox(height: AppSpacing.massive),
+      ],
     );
   }
+}
 
-  /// Maps a day's contribution count onto the five-step ramp, matching the
-  /// level scale on github.com.
-  Color _getContributionColor(BuildContext context, int count) {
-    final ramp = context.tokens.heatmap;
-    if (count == 0) return ramp[0];
-    if (count <= 2) return ramp[1];
-    if (count <= 4) return ramp[2];
-    if (count <= 7) return ramp[3];
-    return ramp[4];
+class _StatsSkeleton extends StatelessWidget {
+  const _StatsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: const [
+        SkeletonCard(lines: 1),
+        SizedBox(height: AppSpacing.xxl),
+        SkeletonCard(lines: 4),
+        SizedBox(height: AppSpacing.xxl),
+        SkeletonCard(lines: 2),
+      ],
+    );
   }
 }
