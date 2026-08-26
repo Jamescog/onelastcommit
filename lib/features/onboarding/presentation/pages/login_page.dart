@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_tokens.dart';
-import 'setup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -48,9 +50,7 @@ class _LoginPageState extends State<LoginPage>
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const SetupPage()));
+      context.go(Routes.setup);
     }
   }
 

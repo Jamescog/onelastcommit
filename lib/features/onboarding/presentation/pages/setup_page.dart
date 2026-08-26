@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../settings/domain/entities/app_settings.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
-import '../../../tracker/presentation/pages/home_page.dart';
 
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
@@ -99,9 +101,7 @@ class _SetupPageState extends State<SetupPage> {
 
     context.read<SettingsBloc>().add(UpdateSettings(settings));
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => HomePage()));
+    context.go(Routes.home);
   }
 
   @override
