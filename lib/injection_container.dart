@@ -43,6 +43,6 @@ Future<void> init() async {
     () => TrackerLocalDataSourceImpl(databaseService: sl()),
   );
   sl.registerLazySingleton<TrackerRepository>(
-    () => TrackerRepositoryImpl(remote: sl(), local: sl()),
+    () => TrackerRepositoryImpl(remote: sl(), local: sl(), settings: sl()),
   );
 }

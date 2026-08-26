@@ -1,8 +1,10 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../settings/data/datasources/settings_local_data_source.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
+import '../../domain/services/streak_calculator.dart';
 import '../datasources/tracker_data_source.dart';
 import '../datasources/tracker_local_data_source.dart';
 
@@ -13,10 +15,19 @@ import '../datasources/tracker_local_data_source.dart';
 /// the same path, and the difference shows up as [DataFreshness] rather than
 /// as a different code branch.
 class TrackerRepositoryImpl implements TrackerRepository {
-  const TrackerRepositoryImpl({required this.remote, required this.local});
+  const TrackerRepositoryImpl({
+    required this.remote,
+    required this.local,
+    required this.settings,
+  });
 
   final TrackerDataSource remote;
   final TrackerLocalDataSource local;
+
+  /// Only for `installedAt`, which anchors the OLC era on the analysis
+  /// page. It never gates whether a contribution counts toward the streak —
+  /// that was the original bug. See PLAN.md section 4.
+  final SettingsLocalDataSource settings;
 
   /// A mirror older than this is worth flagging to the user. It does not stop
   /// the data being shown — it stops the app claiming certainty about it.
@@ -66,12 +77,37 @@ class TrackerRepositoryImpl implements TrackerRepository {
   }
 
   @override
-  Future<Either<Failure, StreakStatus>> getStreak() =>
-      throw UnimplementedError('getStreak lands in commit 7');
+  Future<Either<Failure, StreakStatus>> getStreak() async {
+    try {
+      final days = await local.getCalendar();
+      final streak = StreakCalculator.streakFrom(
+        days,
+        now: DateTime.now(),
+        freshness: await currentFreshness(),
+      );
+      if (streak == null) return Left(CacheFailure());
+      return Right(streak);
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
 
   @override
-  Future<Either<Failure, OlcInsights>> getInsights() =>
-      throw UnimplementedError('getInsights lands in commit 7');
+  Future<Either<Failure, OlcInsights>> getInsights() async {
+    try {
+      final saved = await settings.getSettings();
+      return Right(
+        StreakCalculator.insightsFrom(
+          days: await local.getCalendar(),
+          reminders: await local.getReminders(),
+          activity: await local.getActivity(limit: 500),
+          installedAt: saved.installedAt ?? DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
 
   @override
   Future<Either<Failure, DataFreshness>> sync() async {
