@@ -4,6 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../tracker/presentation/bloc/tracker_bloc.dart';
 import '../../domain/entities/app_settings.dart';
@@ -106,6 +107,7 @@ class _Loaded extends StatelessWidget {
                 _update(context, settings.copyWith(themeMode: s.first)),
           ),
         ),
+        const DevPanel(),
         const SizedBox(height: AppSpacing.massive),
       ],
     );
@@ -151,6 +153,14 @@ class _Account extends StatelessWidget {
                           : '@${profile.login}',
                       style: text.bodySmall?.copyWith(color: t.textSecondary),
                     ),
+                    if (profile != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '${profile.followers} followers · '
+                        '${profile.publicRepos} repos',
+                        style: text.bodySmall?.copyWith(color: t.textSecondary),
+                      ),
+                    ],
                   ],
                 ),
               ),

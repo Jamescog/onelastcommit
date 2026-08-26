@@ -55,6 +55,14 @@ class ActivityRow extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (activity.type == ContributionType.commit &&
+                    activity.count > 1) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  AppPill(
+                    label: '${activity.count} commits',
+                    icon: Icons.commit,
+                  ),
+                ],
                 if (!activity.counted) ...[
                   const SizedBox(height: AppSpacing.sm),
                   AppPill(

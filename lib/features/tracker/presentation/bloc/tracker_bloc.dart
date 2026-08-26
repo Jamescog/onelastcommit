@@ -21,6 +21,11 @@ class SyncTracker extends TrackerEvent {
   const SyncTracker();
 }
 
+/// Wipe the mirror and refetch. Development only.
+class ResetTracker extends TrackerEvent {
+  const ResetTracker();
+}
+
 abstract class TrackerState extends Equatable {
   const TrackerState();
 
@@ -106,6 +111,11 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
   TrackerBloc({required this.repository}) : super(const TrackerInitial()) {
     on<LoadTracker>(_onLoad);
     on<SyncTracker>(_onSync);
+    on<ResetTracker>((event, emit) async {
+      emit(const TrackerLoading());
+      await repository.resetAndSync();
+      add(const LoadTracker());
+    });
   }
 
   final TrackerRepository repository;

@@ -43,4 +43,11 @@ enum Scenario {
 /// A [ValueNotifier] so the dev switcher can change it and have dependent
 /// widgets rebuild without restarting. Debug-only: in a release build the fake
 /// is not registered at all.
-final ValueNotifier<Scenario> activeScenario = ValueNotifier(Scenario.atRisk);
+final ValueNotifier<Scenario> activeScenario = ValueNotifier(Scenario.healthy);
+
+/// Pretends the app was installed this many days ago.
+///
+/// The analysis page only counts days since install, so a genuinely fresh
+/// install has a one-day era and nothing to show. That is correct behaviour
+/// and useless for reviewing the page, so the dev panel can backdate it.
+final ValueNotifier<int> demoInstalledDaysAgo = ValueNotifier(90);

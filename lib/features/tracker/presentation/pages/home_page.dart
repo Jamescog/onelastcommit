@@ -38,7 +38,7 @@ class _HomePageState extends State<HomePage>
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
-            expandedHeight: 168,
+            expandedHeight: 208,
             pinned: true,
             backgroundColor: t.ground,
             flexibleSpace: const FlexibleSpaceBar(
@@ -127,6 +127,7 @@ class _ProfileHeader extends StatelessWidget {
             AppSpacing.huge,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
                 radius: 26,
@@ -148,11 +149,46 @@ class _ProfileHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (profile != null)
+                    if (profile != null) ...[
                       Text(
                         '@${profile.login}',
                         style: text.bodySmall?.copyWith(color: t.textSecondary),
                       ),
+                      if (profile.bio != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          profile.bio!,
+                          style: text.bodySmall?.copyWith(
+                            color: t.textSecondary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          _Meta(
+                            icon: Icons.people_outline,
+                            label: '${profile.followers} followers',
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          _Meta(
+                            icon: Icons.folder_outlined,
+                            label: '${profile.publicRepos} repos',
+                          ),
+                          if (profile.location != null) ...[
+                            const SizedBox(width: AppSpacing.md),
+                            Flexible(
+                              child: _Meta(
+                                icon: Icons.place_outlined,
+                                label: profile.location!,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -160,6 +196,35 @@ class _ProfileHeader extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _Meta extends StatelessWidget {
+  const _Meta({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: t.textSecondary),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

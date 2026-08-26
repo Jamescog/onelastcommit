@@ -29,6 +29,12 @@ abstract class TrackerLocalDataSource {
   Future<void> sealDaysBefore(String todayLabel);
 
   Future<void> enqueue(String kind, String payload);
+
+  /// Wipes the mirror, sealed rows included.
+  ///
+  /// Only for switching demo scenarios: a normal sync refuses to overwrite a
+  /// sealed day, which is what stops a stale device clobbering good data.
+  Future<void> clearAll();
 }
 
 class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
@@ -219,6 +225,23 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       'kind': kind,
       'payload': payload,
       'created_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  @override
+  Future<void> clearAll() async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      for (final table in const [
+        'contribution_days',
+        'contribution_activity',
+        'repo_activity',
+        'reminder_events',
+        'outbox',
+        'sync_state',
+      ]) {
+        await txn.delete(table);
+      }
     });
   }
 

@@ -138,6 +138,16 @@ class TrackerRepositoryImpl implements TrackerRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, DataFreshness>> resetAndSync() async {
+    try {
+      await local.clearAll();
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+    return sync();
+  }
+
   Future<int> _safeDayCount() async {
     try {
       return (await local.getCalendar()).length;

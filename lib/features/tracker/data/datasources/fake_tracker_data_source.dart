@@ -25,6 +25,21 @@ class FakeTrackerDataSource implements TrackerDataSource {
     'acme/design-system',
   ];
 
+  static const _commitMessages = [
+    'fix: seal contribution days past their UTC deadline',
+    'feat: add rolling seven-day average to the trend chart',
+    'refactor: move streak rules into the domain layer',
+    'fix: countdown no longer goes negative after midnight',
+    'chore: bump go_router to 16.2.4',
+    'feat: warn when a reminder falls after the UTC deadline',
+    'fix: heatmap today-ring vanished against the accent ramp',
+    'test: cover the pending-today rule',
+    'docs: explain why push events are the wrong signal',
+    'perf: batch calendar writes into one transaction',
+    'fix: settings bloc no longer spins forever on cache failure',
+    'feat: surface uncounted pushes on the repos tab',
+  ];
+
   static const _issueTitles = [
     'Streak resets an hour early in UTC+13',
     'Heatmap tooltip clipped on small screens',
@@ -183,6 +198,7 @@ class FakeTrackerDataSource implements TrackerDataSource {
           repoName: _repoNames[rand.nextInt(_repoNames.length)],
           occurredAt: DateTime.now().subtract(Duration(hours: i * 2 + 1)),
           count: 1 + rand.nextInt(4),
+          title: _commitMessages[rand.nextInt(_commitMessages.length)],
         ),
       );
     }
@@ -200,7 +216,7 @@ class FakeTrackerDataSource implements TrackerDataSource {
           ),
           count: type == ContributionType.commit ? 1 + rand.nextInt(5) : 1,
           title: type == ContributionType.commit
-              ? null
+              ? _commitMessages[rand.nextInt(_commitMessages.length)]
               : _issueTitles[rand.nextInt(_issueTitles.length)],
           counted: counted,
           branch: counted ? null : 'feature/refactor-tokens',

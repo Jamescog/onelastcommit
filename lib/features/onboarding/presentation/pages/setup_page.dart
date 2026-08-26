@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/dev/dev_scenario.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 
 class SetupPage extends StatefulWidget {
@@ -103,7 +105,11 @@ class _SetupPageState extends State<SetupPage> {
           remindersEnabled: true,
           reminderTimes: _selectedReminderTimes,
           trackWeekends: _trackWeekends,
-          installedAt: DateTime.now(),
+          installedAt: devToolsEnabled
+              ? DateTime.now().subtract(
+                  Duration(days: demoInstalledDaysAgo.value),
+                )
+              : DateTime.now(),
         ),
       ),
     );

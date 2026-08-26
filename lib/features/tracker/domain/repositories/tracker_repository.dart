@@ -34,4 +34,9 @@ abstract class TrackerRepository {
   /// Refresh the mirror. Returns the freshness that resulted, so a caller can
   /// tell a successful refresh from a silent fall back to cache.
   Future<Either<Failure, DataFreshness>> sync();
+
+  /// Drops the mirror and refetches from scratch. Development only — used
+  /// when switching demo scenarios, where a normal sync would refuse to
+  /// overwrite days it has already sealed.
+  Future<Either<Failure, DataFreshness>> resetAndSync();
 }
