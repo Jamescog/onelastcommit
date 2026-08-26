@@ -4,6 +4,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
 import '../widgets.dart';
+import 'scenario_preview_page.dart';
 
 /// Every shared component, in either theme, on one scrollable page.
 ///
@@ -41,6 +42,15 @@ class _ComponentGalleryPageState extends State<ComponentGalleryPage> {
             appBar: AppBar(
               title: const Text('Components'),
               actions: [
+                IconButton(
+                  tooltip: 'Scenarios',
+                  icon: const Icon(Icons.science_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ScenarioPreviewPage(),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.lg),
                   child: SegmentedButton<Brightness>(
