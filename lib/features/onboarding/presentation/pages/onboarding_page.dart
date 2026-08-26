@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 import 'login_page.dart';
 
 class OnboardingPage extends StatefulWidget {
@@ -19,21 +19,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
       description:
           'Monitor your daily commits, contributions, and maintain your coding streak with beautiful visualizations.',
       icon: Icons.show_chart,
-      color: AppColors.electricBlue,
+      accent: OnboardingAccent.info,
     ),
     OnboardingContent(
       title: 'Never Miss a Day',
       description:
           'Smart notifications remind you to make that one last commit before the day ends.',
       icon: Icons.notifications_active,
-      color: AppColors.alertOrange,
+      accent: OnboardingAccent.danger,
     ),
     OnboardingContent(
       title: 'Stay Motivated',
       description:
           'Watch your contribution graph grow and celebrate your coding achievements every day.',
       icon: Icons.emoji_events,
-      color: AppColors.commitGreen,
+      accent: OnboardingAccent.accent,
     ),
   ];
 
@@ -90,8 +90,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentPage == index
-                              ? AppColors.electricBlue
-                              : AppColors.slateGray,
+                              ? context.tokens.info
+                              : context.tokens.textSecondary,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -130,17 +130,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 }
 
+/// Which semantic token an onboarding page leans on. Stored as a role rather
+/// than a Color so the content list stays a plain field — a Color would have to
+/// be resolved from a BuildContext, which is not available in an initializer.
+enum OnboardingAccent { info, danger, accent }
+
 class OnboardingContent {
   final String title;
   final String description;
   final IconData icon;
-  final Color color;
+  final OnboardingAccent accent;
 
   OnboardingContent({
     required this.title,
     required this.description,
     required this.icon,
-    required this.color,
+    required this.accent,
   });
 }
 
@@ -149,8 +154,15 @@ class _OnboardingPageContent extends StatelessWidget {
 
   const _OnboardingPageContent({required this.content});
 
+  Color _accent(BuildContext context) => switch (content.accent) {
+    OnboardingAccent.info => context.tokens.info,
+    OnboardingAccent.danger => context.tokens.danger,
+    OnboardingAccent.accent => context.tokens.accent,
+  };
+
   @override
   Widget build(BuildContext context) {
+    final accent = _accent(context);
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -160,10 +172,10 @@ class _OnboardingPageContent extends StatelessWidget {
             width: 200,
             height: 200,
             decoration: BoxDecoration(
-              color: content.color.withOpacity(0.1),
+              color: accent.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(content.icon, size: 100, color: content.color),
+            child: Icon(content.icon, size: 100, color: accent),
           ),
           const SizedBox(height: 48),
           Text(
@@ -174,9 +186,9 @@ class _OnboardingPageContent extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             content.description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: AppColors.slateGray),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: context.tokens.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

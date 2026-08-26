@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/data/mock_data.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 import '../../domain/entities/app_settings.dart';
 import '../bloc/settings_bloc.dart';
 
@@ -57,7 +57,7 @@ class SettingsPage extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 40,
-              backgroundColor: AppColors.commitGreen,
+              backgroundColor: context.tokens.accent,
               child: Text(
                 MockUser.mockUser.username[0].toUpperCase(),
                 style: const TextStyle(
@@ -79,7 +79,7 @@ class SettingsPage extends StatelessWidget {
                   Text(
                     '@${MockUser.mockUser.username}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.electricBlue,
+                      color: context.tokens.info,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -103,7 +103,7 @@ class SettingsPage extends StatelessWidget {
       title,
       style: Theme.of(
         context,
-      ).textTheme.titleMedium?.copyWith(color: AppColors.slateGray),
+      ).textTheme.titleMedium?.copyWith(color: context.tokens.textSecondary),
     );
   }
 
@@ -112,26 +112,23 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(
-              Icons.account_circle,
-              color: AppColors.electricBlue,
-            ),
+            leading: Icon(Icons.account_circle, color: context.tokens.info),
             title: const Text('GitHub Username'),
             subtitle: Text(MockUser.mockUser.username),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              color: AppColors.slateGray,
+              color: context.tokens.textSecondary,
             ),
             onTap: () {},
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.email, color: AppColors.electricBlue),
+            leading: Icon(Icons.email, color: context.tokens.info),
             title: const Text('Email'),
             subtitle: const Text('james@example.com'),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              color: AppColors.slateGray,
+              color: context.tokens.textSecondary,
             ),
             onTap: () {},
           ),
@@ -145,14 +142,13 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile(
-            secondary: const Icon(
+            secondary: Icon(
               Icons.notifications_active,
-              color: AppColors.alertOrange,
+              color: context.tokens.danger,
             ),
             title: const Text('Daily Reminders'),
             subtitle: const Text('Get reminded to commit every day'),
             value: settings.remindersEnabled,
-            activeColor: AppColors.commitGreen,
             onChanged: (val) {
               context.read<SettingsBloc>().add(
                 UpdateSettings(
@@ -171,12 +167,12 @@ class SettingsPage extends StatelessWidget {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.schedule, color: AppColors.electricBlue),
+            leading: Icon(Icons.schedule, color: context.tokens.info),
             title: const Text('Reminder Times'),
             subtitle: Text(settings.reminderTimes.join(', ')),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              color: AppColors.slateGray,
+              color: context.tokens.textSecondary,
             ),
             onTap: () {},
           ),
@@ -190,14 +186,10 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile(
-            secondary: const Icon(
-              Icons.calendar_today,
-              color: AppColors.commitGreen,
-            ),
+            secondary: Icon(Icons.calendar_today, color: context.tokens.accent),
             title: const Text('Track Weekends'),
             subtitle: const Text('Include Saturday and Sunday'),
             value: settings.trackWeekends,
-            activeColor: AppColors.commitGreen,
             onChanged: (val) {
               context.read<SettingsBloc>().add(
                 UpdateSettings(
@@ -216,12 +208,12 @@ class SettingsPage extends StatelessWidget {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.language, color: AppColors.electricBlue),
+            leading: Icon(Icons.language, color: context.tokens.info),
             title: const Text('Timezone'),
             subtitle: Text(settings.timezone),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              color: AppColors.slateGray,
+              color: context.tokens.textSecondary,
             ),
             onTap: () {},
           ),
@@ -232,21 +224,18 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildDangerZone(BuildContext context) {
     return Card(
-      color: AppColors.alertOrange.withOpacity(0.1),
+      color: context.tokens.danger.withValues(alpha: 0.1),
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.alertOrange),
+            leading: Icon(Icons.logout, color: context.tokens.danger),
             title: const Text('Sign Out'),
             subtitle: const Text('Sign out of your account'),
             onTap: () {},
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(
-              Icons.delete_forever,
-              color: AppColors.alertOrange,
-            ),
+            leading: Icon(Icons.delete_forever, color: context.tokens.danger),
             title: const Text('Delete Account'),
             subtitle: const Text('Permanently delete all data'),
             onTap: () {},

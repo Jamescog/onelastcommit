@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/mock_data.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage>
               expandedHeight: 220,
               floating: false,
               pinned: true,
-              backgroundColor: AppColors.deepSpace,
+              backgroundColor: context.tokens.ground,
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
                 title: Text(
@@ -50,8 +50,8 @@ class _HomePageState extends State<HomePage>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.commitGreen.withOpacity(0.2),
-                        AppColors.deepSpace,
+                        context.tokens.accent.withValues(alpha: 0.2),
+                        context.tokens.ground,
                       ],
                     ),
                   ),
@@ -63,7 +63,7 @@ class _HomePageState extends State<HomePage>
                         children: [
                           CircleAvatar(
                             radius: 40,
-                            backgroundColor: AppColors.commitGreen,
+                            backgroundColor: context.tokens.accent,
                             child: Text(
                               MockUser.mockUser.username[0].toUpperCase(),
                               style: const TextStyle(
@@ -75,18 +75,18 @@ class _HomePageState extends State<HomePage>
                           const SizedBox(height: 12),
                           Text(
                             MockUser.mockUser.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: context.tokens.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '@${MockUser.mockUser.username}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: AppColors.slateGray,
+                              color: context.tokens.textSecondary,
                             ),
                           ),
                         ],
@@ -109,9 +109,9 @@ class _HomePageState extends State<HomePage>
               delegate: _SliverAppBarDelegate(
                 TabBar(
                   controller: _tabController,
-                  labelColor: AppColors.electricBlue,
-                  unselectedLabelColor: AppColors.slateGray,
-                  indicatorColor: AppColors.electricBlue,
+                  labelColor: context.tokens.info,
+                  unselectedLabelColor: context.tokens.textSecondary,
+                  indicatorColor: context.tokens.info,
                   tabs: const [
                     Tab(text: 'Today'),
                     Tab(text: 'Stats'),
@@ -147,7 +147,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Container(color: AppColors.deepSpace, child: _tabBar);
+    return Container(color: context.tokens.ground, child: _tabBar);
   }
 
   @override
@@ -204,17 +204,17 @@ class _TodayTab extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: hasCommits
               ? [
-                  AppColors.commitGreen.withOpacity(0.3),
-                  AppColors.electricBlue.withOpacity(0.2),
+                  context.tokens.accent.withValues(alpha: 0.3),
+                  context.tokens.info.withValues(alpha: 0.2),
                 ]
               : [
-                  AppColors.alertOrange.withOpacity(0.3),
-                  AppColors.alertOrange.withOpacity(0.1),
+                  context.tokens.danger.withValues(alpha: 0.3),
+                  context.tokens.danger.withValues(alpha: 0.1),
                 ],
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: hasCommits ? AppColors.commitGreen : AppColors.alertOrange,
+          color: hasCommits ? context.tokens.accent : context.tokens.danger,
           width: 2,
         ),
       ),
@@ -227,8 +227,8 @@ class _TodayTab extends StatelessWidget {
               hasCommits ? Icons.check_circle : Icons.hourglass_empty,
               size: 140,
               color: hasCommits
-                  ? AppColors.commitGreen.withOpacity(0.1)
-                  : AppColors.alertOrange.withOpacity(0.1),
+                  ? context.tokens.accent.withValues(alpha: 0.1)
+                  : context.tokens.danger.withValues(alpha: 0.1),
             ),
           ),
           Padding(
@@ -244,14 +244,14 @@ class _TodayTab extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: hasCommits
-                        ? AppColors.commitGreen
-                        : AppColors.alertOrange,
+                        ? context.tokens.accent
+                        : context.tokens.danger,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     hasCommits ? 'ON TRACK' : 'PENDING',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: context.tokens.onAccent,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
@@ -271,9 +271,9 @@ class _TodayTab extends StatelessWidget {
                   hasCommits
                       ? '${MockData.todayCommits.length} commits today. Keep it going!'
                       : 'Don\'t break your streak. Push some code today!',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: AppColors.slateGray),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: context.tokens.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -292,7 +292,7 @@ class _TodayTab extends StatelessWidget {
             '🔥',
             '${MockData.contributionStats['currentStreak']}',
             'Day Streak',
-            AppColors.alertOrange.withOpacity(0.2),
+            context.tokens.danger.withValues(alpha: 0.2),
           ),
         ),
         const SizedBox(width: 12),
@@ -302,7 +302,7 @@ class _TodayTab extends StatelessWidget {
             '📊',
             '${MockData.contributionStats['thisWeek']}',
             'This Week',
-            AppColors.electricBlue.withOpacity(0.2),
+            context.tokens.info.withValues(alpha: 0.2),
           ),
         ),
         const SizedBox(width: 12),
@@ -312,7 +312,7 @@ class _TodayTab extends StatelessWidget {
             '⚡',
             '${MockData.contributionStats['thisMonth']}',
             'This Month',
-            AppColors.commitGreen.withOpacity(0.2),
+            context.tokens.accent.withValues(alpha: 0.2),
           ),
         ),
       ],
@@ -331,7 +331,7 @@ class _TodayTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(color: context.tokens.border),
       ),
       child: Column(
         children: [
@@ -362,12 +362,12 @@ class _TodayTab extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.cardBackground,
-            AppColors.cardBackground.withOpacity(0.5),
+            context.tokens.surface,
+            context.tokens.surface.withValues(alpha: 0.5),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(color: context.tokens.border),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
@@ -377,13 +377,13 @@ class _TodayTab extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.commitGreen,
-                AppColors.commitGreen.withOpacity(0.6),
+                context.tokens.accent,
+                context.tokens.accent.withValues(alpha: 0.6),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.commit, color: Colors.white, size: 28),
+          child: Icon(Icons.commit, color: context.tokens.onAccent, size: 28),
         ),
         title: Text(
           commit.message,
@@ -398,13 +398,13 @@ class _TodayTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.electricBlue.withOpacity(0.2),
+                color: context.tokens.info.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 commit.repo,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.electricBlue,
+                  color: context.tokens.info,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -412,10 +412,10 @@ class _TodayTab extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.access_time,
                   size: 14,
-                  color: AppColors.slateGray,
+                  color: context.tokens.textSecondary,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -429,13 +429,13 @@ class _TodayTab extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.commitGreen.withOpacity(0.2),
+                    color: context.tokens.accent.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '+${commit.additions}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.commitGreen,
+                      color: context.tokens.accent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -447,13 +447,13 @@ class _TodayTab extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.alertOrange.withOpacity(0.2),
+                    color: context.tokens.danger.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '-${commit.deletions}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.alertOrange,
+                      color: context.tokens.danger,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -475,7 +475,7 @@ class _TodayTab extends StatelessWidget {
             Icon(
               Icons.code_off,
               size: 64,
-              color: AppColors.slateGray.withOpacity(0.5),
+              color: context.tokens.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -552,7 +552,7 @@ class _StatsTab extends StatelessWidget {
                 'Total',
                 '${stats['totalContributions']}',
                 Icons.code,
-                AppColors.electricBlue,
+                context.tokens.info,
               ),
             ),
             const SizedBox(width: 12),
@@ -562,7 +562,7 @@ class _StatsTab extends StatelessWidget {
                 'This Month',
                 '${stats['thisMonth']}',
                 Icons.calendar_month,
-                AppColors.commitGreen,
+                context.tokens.accent,
               ),
             ),
           ],
@@ -576,7 +576,7 @@ class _StatsTab extends StatelessWidget {
                 'Current Streak',
                 '${stats['currentStreak']} days',
                 Icons.local_fire_department,
-                AppColors.alertOrange,
+                context.tokens.danger,
               ),
             ),
             const SizedBox(width: 12),
@@ -586,7 +586,7 @@ class _StatsTab extends StatelessWidget {
                 'Best Streak',
                 '${stats['longestStreak']} days',
                 Icons.emoji_events,
-                AppColors.commitGreen,
+                context.tokens.accent,
               ),
             ),
           ],
@@ -664,7 +664,7 @@ class _ContributionGraph extends StatelessWidget {
 
                 return Container(
                   decoration: BoxDecoration(
-                    color: _getContributionColor(count),
+                    color: _getContributionColor(context, count),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 );
@@ -676,11 +676,15 @@ class _ContributionGraph extends StatelessWidget {
     );
   }
 
-  Color _getContributionColor(int count) {
-    if (count == 0) return AppColors.borderColor;
-    if (count <= 2) return AppColors.commitGreen.withOpacity(0.3);
-    if (count <= 4) return AppColors.commitGreen.withOpacity(0.6);
-    return AppColors.commitGreen;
+  /// Maps a day's contribution count onto the five-step ramp, matching the
+  /// level scale on github.com.
+  Color _getContributionColor(BuildContext context, int count) {
+    final ramp = context.tokens.heatmap;
+    if (count == 0) return ramp[0];
+    if (count <= 2) return ramp[1];
+    if (count <= 4) return ramp[2];
+    if (count <= 7) return ramp[3];
+    return ramp[4];
   }
 }
 
@@ -700,10 +704,10 @@ class _ReposTab extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.electricBlue.withOpacity(0.2),
+                color: context.tokens.info.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.folder, color: AppColors.electricBlue),
+              child: Icon(Icons.folder, color: context.tokens.info),
             ),
             title: Text(
               repo['name'] as String,
@@ -725,8 +729,8 @@ class _ReposTab extends StatelessWidget {
                     Container(
                       width: 12,
                       height: 12,
-                      decoration: const BoxDecoration(
-                        color: AppColors.electricBlue,
+                      decoration: BoxDecoration(
+                        color: context.tokens.info,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -736,10 +740,10 @@ class _ReposTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(width: 16),
-                    const Icon(
+                    Icon(
                       Icons.star_border,
                       size: 14,
-                      color: AppColors.slateGray,
+                      color: context.tokens.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -747,10 +751,10 @@ class _ReposTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(width: 12),
-                    const Icon(
+                    Icon(
                       Icons.fork_right,
                       size: 14,
-                      color: AppColors.slateGray,
+                      color: context.tokens.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(

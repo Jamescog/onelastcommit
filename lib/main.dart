@@ -28,7 +28,10 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'OLC - One Last Commit',
-        theme: AppTheme.darkTheme,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        // Follows the device until the theme preference lands in settings.
+        themeMode: ThemeMode.system,
         debugShowCheckedModeBanner: false,
         home: const AppLanding(),
       ),

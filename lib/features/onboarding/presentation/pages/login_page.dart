@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 import 'setup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -73,13 +73,13 @@ class _LoginPageState extends State<LoginPage>
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: AppColors.commitGreen.withOpacity(0.1),
+                      color: context.tokens.accent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.commit,
                       size: 60,
-                      color: AppColors.commitGreen,
+                      color: context.tokens.accent,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -91,9 +91,9 @@ class _LoginPageState extends State<LoginPage>
                   const SizedBox(height: 16),
                   Text(
                     'Track your GitHub journey and never miss a coding day',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyLarge?.copyWith(color: AppColors.slateGray),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: context.tokens.textSecondary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const Spacer(),
@@ -119,14 +119,14 @@ class _LoginPageState extends State<LoginPage>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.commitGreen,
-            AppColors.commitGreen.withOpacity(0.8),
+            context.tokens.accent,
+            context.tokens.accent.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: AppColors.commitGreen.withOpacity(0.3),
+            color: context.tokens.accent.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -140,11 +140,11 @@ class _LoginPageState extends State<LoginPage>
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
         child: _isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: context.tokens.onAccent,
                   strokeWidth: 2,
                 ),
               )
@@ -156,7 +156,7 @@ class _LoginPageState extends State<LoginPage>
                   Text(
                     'Sign in with GitHub',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: context.tokens.onAccent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
