@@ -1,98 +1,170 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/exceptions.dart';
+
 import '../../../../core/error/failures.dart';
-import '../../domain/entities/commit_event.dart';
-import '../../domain/repositories/tracker_repository.dart';
-import '../datasources/tracker_local_data_source.dart';
-import '../datasources/tracker_remote_data_source.dart';
 import '../../../settings/data/datasources/settings_local_data_source.dart';
+import '../../domain/entities/entities.dart';
+import '../../domain/repositories/tracker_repository.dart';
+import '../../domain/services/streak_calculator.dart';
+import '../datasources/tracker_data_source.dart';
+import '../datasources/tracker_local_data_source.dart';
 
+/// Local-first. Every read hits the mirror and returns immediately; [sync] is
+/// the only thing that talks to the remote source, and no screen waits on it.
+///
+/// This is what makes offline work without an offline mode — both paths are
+/// the same path, and the difference shows up as [DataFreshness] rather than
+/// as a different code branch.
 class TrackerRepositoryImpl implements TrackerRepository {
-  final TrackerRemoteDataSource remoteDataSource;
-  final TrackerLocalDataSource localDataSource;
-  final SettingsLocalDataSource settingsLocalDataSource;
-
-  TrackerRepositoryImpl({
-    required this.remoteDataSource,
-    required this.localDataSource,
-    required this.settingsLocalDataSource,
+  const TrackerRepositoryImpl({
+    required this.remote,
+    required this.local,
+    required this.settings,
   });
 
+  final TrackerDataSource remote;
+  final TrackerLocalDataSource local;
+
+  /// Only for `installedAt`, which anchors the OLC era on the analysis
+  /// page. It never gates whether a contribution counts toward the streak —
+  /// that was the original bug. See PLAN.md section 4.
+  final SettingsLocalDataSource settings;
+
+  /// A mirror older than this is worth flagging to the user. It does not stop
+  /// the data being shown — it stops the app claiming certainty about it.
+  static const staleAfter = Duration(hours: 6);
+
   @override
-  Future<Either<Failure, List<CommitEvent>>> getCommitHistory() async {
+  Future<Either<Failure, GitHubProfile>> getProfile() async {
     try {
-      final localEvents = await localDataSource.getLastEvents();
-      return Right(localEvents);
-    } catch (e) {
+      final profile = await local.getProfile();
+      if (profile == null) return Left(CacheFailure());
+      return Right(profile);
+    } catch (_) {
       return Left(CacheFailure());
     }
   }
 
   @override
-  Future<Either<Failure, void>> refreshCommits() async {
+  Future<Either<Failure, List<ContributionDay>>> getCalendar({
+    DateTime? from,
+    DateTime? to,
+  }) async {
     try {
-      final settings = await settingsLocalDataSource.getSettings();
-      if (settings.username.isEmpty) return const Right(null);
+      return Right(await local.getCalendar(from: from, to: to));
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
 
-      final lastFetched = await localDataSource.getLastFetchedAt();
-      final now = DateTime.now();
+  @override
+  Future<Either<Failure, List<ContributionActivity>>> getActivity({
+    int limit = 20,
+  }) async {
+    try {
+      return Right(await local.getActivity(limit: limit));
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
 
-      if (lastFetched != null && now.difference(lastFetched).inHours < 3) {
-        return const Right(null);
-      }
+  @override
+  Future<Either<Failure, List<RepoContribution>>> getRepos() async {
+    try {
+      return Right(await local.getRepos());
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
 
-      final etag = await localDataSource.getEtag();
-      final remoteEvents = await remoteDataSource.getPushEvents(
-        settings.username,
-        etag: etag,
-        token: settings.githubToken,
+  @override
+  Future<Either<Failure, StreakStatus>> getStreak() async {
+    try {
+      final days = await local.getCalendar();
+      final streak = StreakCalculator.streakFrom(
+        days,
+        now: DateTime.now(),
+        freshness: await currentFreshness(),
       );
-
-      if (remoteEvents.isNotEmpty) {
-        await localDataSource.cacheEvents(remoteEvents);
-        final newEtag = remoteDataSource.lastEtag;
-        if (newEtag != null) {
-          await localDataSource.saveEtag(newEtag);
-        }
-      }
-
-      await localDataSource.saveLastFetchedAt(now);
-      return const Right(null);
-    } on ServerException {
-      return Left(ServerFailure());
-    } catch (e) {
+      if (streak == null) return Left(CacheFailure());
+      return Right(streak);
+    } catch (_) {
       return Left(CacheFailure());
     }
   }
 
   @override
-  Future<Either<Failure, bool>> hasActivityToday() async {
+  Future<Either<Failure, OlcInsights>> getInsights() async {
     try {
-      final settings = await settingsLocalDataSource.getSettings();
-      final now = DateTime.now();
-
-      if (!settings.trackWeekends &&
-          (now.weekday == DateTime.saturday ||
-              now.weekday == DateTime.sunday)) {
-        return const Right(true);
-      }
-
-      final events = await localDataSource.getLastEvents();
-      final todayStr = now.toIso8601String().substring(0, 10);
-
-      final hasActivity = events.any((e) {
-        final sameDay =
-            e.occurredAt.toLocal().toIso8601String().substring(0, 10) ==
-            todayStr;
-        final afterInstall =
-            settings.installedAt == null ||
-            e.occurredAt.isAfter(settings.installedAt!);
-        return sameDay && afterInstall;
-      });
-
-      return Right(hasActivity);
-    } catch (e) {
+      final saved = await settings.getSettings();
+      return Right(
+        StreakCalculator.insightsFrom(
+          days: await local.getCalendar(),
+          reminders: await local.getReminders(),
+          activity: await local.getActivity(limit: 500),
+          installedAt: saved.installedAt ?? DateTime.now(),
+        ),
+      );
+    } catch (_) {
       return Left(CacheFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, DataFreshness>> sync() async {
+    try {
+      final days = await remote.getCalendar();
+      final activity = await remote.getActivity(limit: 50);
+      final repos = await remote.getRepos();
+      final reminders = await remote.getReminderHistory();
+      final profile = await remote.getProfile();
+
+      await local.saveCalendar(days);
+      await local.saveActivity(activity);
+      await local.saveRepos(repos);
+      await local.saveReminders(reminders);
+      await local.saveProfile(profile);
+
+      // Everything before today is now final.
+      if (days.isNotEmpty) {
+        await local.sealDaysBefore(days.last.date);
+      }
+      await local.setLastSyncedAt(DateTime.now().toUtc());
+      return const Right(DataFreshness.fresh);
+    } catch (_) {
+      // A failed refresh is not a failed read. The mirror still holds real
+      // data; it just cannot be vouched for any more.
+      final hasCache = (await _safeDayCount()) > 0;
+      return Right(hasCache ? DataFreshness.stale : DataFreshness.error);
+    }
+  }
+
+  @override
+  Future<Either<Failure, DataFreshness>> resetAndSync() async {
+    try {
+      await local.clearAll();
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+    return sync();
+  }
+
+  Future<int> _safeDayCount() async {
+    try {
+      return (await local.getCalendar()).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// How much the mirror can be trusted right now, independent of any refresh.
+  Future<DataFreshness> currentFreshness() async {
+    try {
+      final last = await local.getLastSyncedAt();
+      if (last == null) return DataFreshness.error;
+      final age = DateTime.now().toUtc().difference(last);
+      return age > staleAfter ? DataFreshness.stale : DataFreshness.fresh;
+    } catch (_) {
+      return DataFreshness.error;
     }
   }
 }

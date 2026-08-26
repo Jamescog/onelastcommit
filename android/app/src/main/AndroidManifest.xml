@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for the GitHub API. Debug builds inject this automatically,
+         release builds do not. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ requires this to be granted at runtime before any
+         notification can be shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
-        android:label="olc"
+        android:label="One Last Commit"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

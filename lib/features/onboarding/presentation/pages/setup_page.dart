@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../settings/domain/entities/app_settings.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/dev/dev_scenario.dart';
+import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
-import '../../../tracker/presentation/pages/home_page.dart';
 
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
@@ -16,7 +19,9 @@ class _SetupPageState extends State<SetupPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  String _selectedTimezone = DateTime.now().timeZoneName;
+  // Not DateTime.now().timeZoneName: that yields abbreviations like 'EAT',
+  // which no zone database can resolve. The user picks a real identifier.
+  String _selectedTimezone = 'UTC';
   final List<String> _selectedReminderTimes = ['20:00'];
   bool _trackWeekends = true;
 
@@ -39,9 +44,22 @@ class _SetupPageState extends State<SetupPage> {
   ];
 
   final List<String> _availableTimes = [
-    '08:00', '09:00', '10:00', '11:00', '12:00',
-    '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
+    '08:00',
+    '09:00',
+    '10:00',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
+    '15:00',
+    '16:00',
+    '17:00',
+    '18:00',
+    '19:00',
+    '20:00',
+    '21:00',
+    '22:00',
+    '23:00',
   ];
 
   @override
@@ -75,20 +93,28 @@ class _SetupPageState extends State<SetupPage> {
   }
 
   void _completeSetup() {
-    final settings = AppSettings(
-      username: 'demo_user',
-      timezone: _selectedTimezone,
-      remindersEnabled: true,
-      reminderTimes: _selectedReminderTimes,
-      trackWeekends: _trackWeekends,
-      installedAt: DateTime.now(),
+    final current = context.read<SettingsBloc>().state;
+    if (current is! SettingsLoaded) return;
+
+    // installedAt is set once here, and only anchors the analysis era. It
+    // never gates whether a contribution counts toward the streak.
+    context.read<SettingsBloc>().add(
+      UpdateSettings(
+        current.settings.copyWith(
+          timezone: _selectedTimezone,
+          remindersEnabled: true,
+          reminderTimes: _selectedReminderTimes,
+          trackWeekends: _trackWeekends,
+          installedAt: devToolsEnabled
+              ? DateTime.now().subtract(
+                  Duration(days: demoInstalledDaysAgo.value),
+                )
+              : DateTime.now(),
+        ),
+      ),
     );
-    
-    context.read<SettingsBloc>().add(UpdateSettings(settings));
-    
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => HomePage()),
-    );
+
+    context.go(Routes.home);
   }
 
   @override
@@ -125,7 +151,7 @@ class _SetupPageState extends State<SetupPage> {
         children: [
           if (_currentPage > 0)
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+              icon: Icon(Icons.arrow_back, color: context.tokens.textPrimary),
               onPressed: _previousPage,
             )
           else
@@ -140,8 +166,8 @@ class _SetupPageState extends State<SetupPage> {
                 height: 8,
                 decoration: BoxDecoration(
                   color: _currentPage == index
-                      ? AppColors.electricBlue
-                      : AppColors.slateGray,
+                      ? context.tokens.info
+                      : context.tokens.textSecondary,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -159,11 +185,7 @@ class _SetupPageState extends State<SetupPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.public,
-            size: 80,
-            color: AppColors.electricBlue,
-          ),
+          Icon(Icons.public, size: 80, color: context.tokens.info),
           const SizedBox(height: 32),
           Text(
             'Select Your Timezone',
@@ -173,8 +195,8 @@ class _SetupPageState extends State<SetupPage> {
           Text(
             'We\'ll use this to send you reminders at the right time',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.slateGray,
-                ),
+              color: context.tokens.textSecondary,
+            ),
           ),
           const SizedBox(height: 32),
           Card(
@@ -184,10 +206,12 @@ class _SetupPageState extends State<SetupPage> {
                 return ListTile(
                   title: Text(timezone.replaceAll('_', ' ')),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: AppColors.commitGreen)
+                      ? Icon(Icons.check_circle, color: context.tokens.accent)
                       : null,
                   selected: isSelected,
-                  selectedTileColor: AppColors.commitGreen.withOpacity(0.1),
+                  selectedTileColor: context.tokens.accent.withValues(
+                    alpha: 0.1,
+                  ),
                   onTap: () => setState(() => _selectedTimezone = timezone),
                 );
               }).toList(),
@@ -204,11 +228,7 @@ class _SetupPageState extends State<SetupPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.access_time,
-            size: 80,
-            color: AppColors.alertOrange,
-          ),
+          Icon(Icons.access_time, size: 80, color: context.tokens.danger),
           const SizedBox(height: 32),
           Text(
             'Set Reminder Times',
@@ -218,8 +238,8 @@ class _SetupPageState extends State<SetupPage> {
           Text(
             'Choose when you want to be reminded to commit. Select one or more times.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.slateGray,
-                ),
+              color: context.tokens.textSecondary,
+            ),
           ),
           const SizedBox(height: 32),
           Wrap(
@@ -242,11 +262,13 @@ class _SetupPageState extends State<SetupPage> {
                     }
                   });
                 },
-                selectedColor: AppColors.alertOrange.withOpacity(0.3),
-                checkmarkColor: AppColors.alertOrange,
-                backgroundColor: AppColors.cardBackground,
+                selectedColor: context.tokens.danger.withValues(alpha: 0.3),
+                checkmarkColor: context.tokens.danger,
+                backgroundColor: context.tokens.surface,
                 side: BorderSide(
-                  color: isSelected ? AppColors.alertOrange : AppColors.borderColor,
+                  color: isSelected
+                      ? context.tokens.danger
+                      : context.tokens.border,
                 ),
               );
             }).toList(),
@@ -254,12 +276,12 @@ class _SetupPageState extends State<SetupPage> {
           const SizedBox(height: 24),
           if (_selectedReminderTimes.isNotEmpty)
             Card(
-              color: AppColors.alertOrange.withOpacity(0.1),
+              color: context.tokens.danger.withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.alertOrange),
+                    Icon(Icons.info_outline, color: context.tokens.danger),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -282,11 +304,7 @@ class _SetupPageState extends State<SetupPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.tune,
-            size: 80,
-            color: AppColors.commitGreen,
-          ),
+          Icon(Icons.tune, size: 80, color: context.tokens.accent),
           const SizedBox(height: 32),
           Text(
             'Final Touches',
@@ -296,19 +314,18 @@ class _SetupPageState extends State<SetupPage> {
           Text(
             'Customize your tracking preferences',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.slateGray,
-                ),
+              color: context.tokens.textSecondary,
+            ),
           ),
           const SizedBox(height: 32),
           Card(
             child: Column(
               children: [
                 SwitchListTile(
-                  secondary: const Icon(Icons.weekend, color: AppColors.commitGreen),
+                  secondary: Icon(Icons.weekend, color: context.tokens.accent),
                   title: const Text('Track Weekends'),
                   subtitle: const Text('Get reminders on Saturday and Sunday'),
                   value: _trackWeekends,
-                  activeColor: AppColors.commitGreen,
                   onChanged: (val) => setState(() => _trackWeekends = val),
                 ),
               ],
@@ -316,7 +333,7 @@ class _SetupPageState extends State<SetupPage> {
           ),
           const SizedBox(height: 24),
           Card(
-            color: AppColors.electricBlue.withOpacity(0.1),
+            color: context.tokens.info.withValues(alpha: 0.1),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -324,7 +341,7 @@ class _SetupPageState extends State<SetupPage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.check_circle, color: AppColors.electricBlue),
+                      Icon(Icons.check_circle, color: context.tokens.info),
                       const SizedBox(width: 12),
                       Text(
                         'Setup Summary',
@@ -333,9 +350,18 @@ class _SetupPageState extends State<SetupPage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildSummaryItem('Timezone', _selectedTimezone.replaceAll('_', ' ')),
-                  _buildSummaryItem('Reminders', '${_selectedReminderTimes.length} time(s): ${_selectedReminderTimes.join(', ')}'),
-                  _buildSummaryItem('Weekends', _trackWeekends ? 'Enabled' : 'Disabled'),
+                  _buildSummaryItem(
+                    'Timezone',
+                    _selectedTimezone.replaceAll('_', ' '),
+                  ),
+                  _buildSummaryItem(
+                    'Reminders',
+                    '${_selectedReminderTimes.length} time(s): ${_selectedReminderTimes.join(', ')}',
+                  ),
+                  _buildSummaryItem(
+                    'Weekends',
+                    _trackWeekends ? 'Enabled' : 'Disabled',
+                  ),
                 ],
               ),
             ),
@@ -356,15 +382,12 @@ class _SetupPageState extends State<SetupPage> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.slateGray,
-                  ),
+                color: context.tokens.textSecondary,
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),
@@ -375,17 +398,13 @@ class _SetupPageState extends State<SetupPage> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.borderColor, width: 1),
-        ),
+        border: Border(top: BorderSide(color: context.tokens.border, width: 1)),
       ),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
           onPressed: _nextPage,
-          child: Text(
-            _currentPage == 2 ? 'Complete Setup' : 'Continue',
-          ),
+          child: Text(_currentPage == 2 ? 'Complete Setup' : 'Continue'),
         ),
       ),
     );

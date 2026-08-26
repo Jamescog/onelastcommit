@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings_model.dart';
 
@@ -18,8 +19,12 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       githubToken: sharedPreferences.getString('github_token') ?? '',
       timezone: sharedPreferences.getString('timezone') ?? 'UTC',
       remindersEnabled: sharedPreferences.getBool('reminders_enabled') ?? true,
-      reminderTimes: sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
-      trackWeekends: sharedPreferences.getBool('weekend_mode') ?? false,
+      reminderTimes:
+          sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
+      trackWeekends: sharedPreferences.getBool('weekend_mode') ?? true,
+      themeMode: ThemeMode.values.byName(
+        sharedPreferences.getString('theme_mode') ?? 'system',
+      ),
       installedAt: sharedPreferences.getString('installed_at') != null
           ? DateTime.parse(sharedPreferences.getString('installed_at')!)
           : null,
@@ -31,14 +36,23 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     await sharedPreferences.setString('username', settings.username);
     await sharedPreferences.setString('github_token', settings.githubToken);
     await sharedPreferences.setString('timezone', settings.timezone);
-    await sharedPreferences.setBool('reminders_enabled', settings.remindersEnabled);
-    await sharedPreferences.setStringList('reminder_times', settings.reminderTimes);
+    await sharedPreferences.setBool(
+      'reminders_enabled',
+      settings.remindersEnabled,
+    );
+    await sharedPreferences.setStringList(
+      'reminder_times',
+      settings.reminderTimes,
+    );
     await sharedPreferences.setBool('weekend_mode', settings.trackWeekends);
+    await sharedPreferences.setString('theme_mode', settings.themeMode.name);
     if (settings.installedAt != null) {
       await sharedPreferences.setString(
         'installed_at',
         settings.installedAt!.toUtc().toIso8601String(),
       );
+    } else {
+      await sharedPreferences.remove('installed_at');
     }
   }
 }
