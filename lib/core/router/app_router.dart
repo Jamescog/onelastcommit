@@ -9,6 +9,7 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/setup_page.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/tracker/presentation/pages/analysis_page.dart';
 import '../../features/tracker/presentation/pages/home_page.dart';
 import '../widgets/dev/component_gallery_page.dart';
 import '../widgets/dev/scenario_preview_page.dart';
@@ -22,6 +23,7 @@ class Routes {
   static const login = '/login';
   static const setup = '/setup';
   static const home = '/home';
+  static const analysis = '/analysis';
   static const settings = '/settings';
   static const gallery = '/dev/components';
   static const scenarios = '/dev/scenarios';
@@ -79,6 +81,7 @@ GoRouter buildRouter(SettingsBloc settingsBloc) {
       GoRoute(path: Routes.login, builder: (_, _) => const LoginPage()),
       GoRoute(path: Routes.setup, builder: (_, _) => const SetupPage()),
       GoRoute(path: Routes.home, builder: (_, _) => const HomePage()),
+      GoRoute(path: Routes.analysis, builder: (_, _) => const AnalysisPage()),
       GoRoute(path: Routes.settings, builder: (_, _) => const SettingsPage()),
       if (kDebugMode) ...[
         GoRoute(

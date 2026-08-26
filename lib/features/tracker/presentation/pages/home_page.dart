@@ -63,6 +63,12 @@ class _HomePageState extends State<HomePage>
                     : const SizedBox.shrink(),
               ),
               IconButton(
+                tooltip: 'Analysis',
+                icon: const Icon(Icons.query_stats_outlined),
+                onPressed: () => context.push(Routes.analysis),
+              ),
+              IconButton(
+                tooltip: 'Settings',
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () => context.push(Routes.settings),
               ),

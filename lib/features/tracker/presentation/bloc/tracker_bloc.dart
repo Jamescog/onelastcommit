@@ -44,6 +44,7 @@ class TrackerLoaded extends TrackerState {
     this.calendar = const [],
     this.repos = const [],
     this.profile,
+    this.insights,
     this.isSyncing = false,
   });
 
@@ -52,6 +53,10 @@ class TrackerLoaded extends TrackerState {
   final List<ContributionDay> calendar;
   final List<RepoContribution> repos;
   final GitHubProfile? profile;
+
+  /// OLC-era aggregates for the analysis page. Null until enough history has
+  /// accrued to say anything.
+  final OlcInsights? insights;
 
   /// A refresh is running behind data that is already on screen. The UI shows
   /// a quiet indicator rather than tearing down to a spinner.
@@ -63,6 +68,7 @@ class TrackerLoaded extends TrackerState {
     calendar: calendar,
     repos: repos,
     profile: profile,
+    insights: insights,
     isSyncing: isSyncing ?? this.isSyncing,
   );
 
@@ -73,6 +79,7 @@ class TrackerLoaded extends TrackerState {
     calendar,
     repos,
     profile,
+    insights,
     isSyncing,
   ];
 }
@@ -125,6 +132,7 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
         final calendar = await repository.getCalendar();
         final repos = await repository.getRepos();
         final profile = await repository.getProfile();
+        final insights = await repository.getInsights();
 
         emit(
           TrackerLoaded(
@@ -133,6 +141,7 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
             calendar: calendar.getOrElse(() => const []),
             repos: repos.getOrElse(() => const []),
             profile: profile.fold((_) => null, (p) => p),
+            insights: insights.fold((_) => null, (i) => i),
           ),
         );
       },
