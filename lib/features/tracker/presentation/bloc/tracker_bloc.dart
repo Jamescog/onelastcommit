@@ -1,65 +1,87 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../domain/entities/commit_event.dart';
+import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
 
 abstract class TrackerEvent extends Equatable {
+  const TrackerEvent();
+
   @override
   List<Object?> get props => [];
 }
 
-class FetchTrackerData extends TrackerEvent {}
+/// Read the local mirror. Never touches the network.
+class LoadTracker extends TrackerEvent {
+  const LoadTracker();
+}
 
-class RefreshTrackerData extends TrackerEvent {}
+/// Refresh the mirror, then reload. Pull-to-refresh.
+class SyncTracker extends TrackerEvent {
+  const SyncTracker();
+}
 
 abstract class TrackerState extends Equatable {
+  const TrackerState();
+
   @override
   List<Object?> get props => [];
 }
 
-class TrackerInitial extends TrackerState {}
-
-class TrackerLoading extends TrackerState {}
-
-class TrackerLoaded extends TrackerState {
-  final List<CommitEvent> events;
-  final bool hasActivityToday;
-  TrackerLoaded({required this.events, required this.hasActivityToday});
-  @override
-  List<Object?> get props => [events, hasActivityToday];
+class TrackerInitial extends TrackerState {
+  const TrackerInitial();
 }
 
-class TrackerError extends TrackerState {
+class TrackerLoading extends TrackerState {
+  const TrackerLoading();
+}
+
+class TrackerLoaded extends TrackerState {
+  const TrackerLoaded({
+    required this.streak,
+    this.activity = const [],
+    this.calendar = const [],
+  });
+
+  final StreakStatus streak;
+  final List<ContributionActivity> activity;
+  final List<ContributionDay> calendar;
+
+  @override
+  List<Object?> get props => [streak, activity, calendar];
+}
+
+class TrackerFailed extends TrackerState {
+  const TrackerFailed(this.message);
+
   final String message;
-  TrackerError(this.message);
+
   @override
   List<Object?> get props => [message];
 }
 
+/// Minimal wiring against the new repository. The full state machine —
+/// empty, stale-with-cache, and the local streak computation — lands in
+/// commit 7; nothing renders from this bloc until commit 9.
 class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
+  TrackerBloc({required this.repository}) : super(const TrackerInitial()) {
+    on<LoadTracker>(_onLoad);
+    on<SyncTracker>(_onSync);
+  }
+
   final TrackerRepository repository;
 
-  TrackerBloc({required this.repository}) : super(TrackerInitial()) {
-    on<FetchTrackerData>((event, emit) async {
-      emit(TrackerLoading());
-      final historyResult = await repository.getCommitHistory();
-      final activityResult = await repository.hasActivityToday();
+  Future<void> _onLoad(LoadTracker event, Emitter<TrackerState> emit) async {
+    emit(const TrackerLoading());
+    final result = await repository.getStreak();
+    result.fold(
+      (_) => emit(const TrackerFailed('Could not read your streak')),
+      (streak) => emit(TrackerLoaded(streak: streak)),
+    );
+  }
 
-      historyResult.fold(
-        (failure) => emit(TrackerError('Failed to load history')),
-        (events) => activityResult.fold(
-          (failure) => emit(TrackerError('Failed to check activity')),
-          (hasActivity) => emit(
-            TrackerLoaded(events: events, hasActivityToday: hasActivity),
-          ),
-        ),
-      );
-    });
-
-    on<RefreshTrackerData>((event, emit) async {
-      await repository.refreshCommits();
-      add(FetchTrackerData());
-    });
+  Future<void> _onSync(SyncTracker event, Emitter<TrackerState> emit) async {
+    await repository.sync();
+    add(const LoadTracker());
   }
 }

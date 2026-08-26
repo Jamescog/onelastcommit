@@ -1,0 +1,60 @@
+import 'package:equatable/equatable.dart';
+
+/// The kinds of work that earn a square.
+///
+/// Commits are only one of them, which is why a push-event feed is the wrong
+/// signal for this app — opening an issue or reviewing a pull request keeps a
+/// streak alive without producing a single push.
+enum ContributionType { commit, issue, pullRequest, review }
+
+/// A single item in the day's activity list.
+class ContributionActivity extends Equatable {
+  const ContributionActivity({
+    required this.id,
+    required this.type,
+    required this.repoName,
+    required this.occurredAt,
+    this.count = 1,
+    this.title,
+    this.counted = true,
+    this.branch,
+    this.isPrivate = false,
+  });
+
+  final String id;
+  final ContributionType type;
+  final String repoName;
+  final DateTime occurredAt;
+
+  /// For commit contributions, how many commits this entry represents.
+  final int count;
+
+  /// Issue or pull request title. Null for grouped commit contributions.
+  final String? title;
+
+  /// Whether this earned a square.
+  ///
+  /// False for pushes to non-default branches, pushes to forks, and commits
+  /// authored from an email not tied to the account. Surfacing this is what
+  /// lets someone find out why a streak broke on a day they were working.
+  final bool counted;
+
+  /// Only known for push-derived activity, and only when it did not count —
+  /// it is the explanation, not decoration.
+  final String? branch;
+
+  final bool isPrivate;
+
+  @override
+  List<Object?> get props => [
+    id,
+    type,
+    repoName,
+    occurredAt,
+    count,
+    title,
+    counted,
+    branch,
+    isPrivate,
+  ];
+}
