@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/util/db_service.dart';
 import 'core/util/notification_service.dart';
+import 'features/onboarding/data/repositories/fake_auth_repository.dart';
+import 'features/onboarding/domain/repositories/auth_repository.dart';
+import 'features/onboarding/presentation/bloc/auth_bloc.dart';
 import 'features/settings/data/datasources/settings_local_data_source.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
@@ -24,8 +27,11 @@ Future<void> init() async {
   sl.registerLazySingleton(() => NotificationService());
 
   sl.registerFactory(() => SettingsBloc(repository: sl()));
+  sl.registerFactory(() => AuthBloc(repository: sl()));
   sl.registerFactory(() => TrackerBloc(repository: sl()));
 
+  // Phase 2 replaces this with the real GitHub device flow.
+  sl.registerLazySingleton<AuthRepository>(FakeAuthRepository.new);
   sl.registerLazySingleton<SettingsLocalDataSource>(
     () => SettingsLocalDataSourceImpl(sharedPreferences: sl()),
   );

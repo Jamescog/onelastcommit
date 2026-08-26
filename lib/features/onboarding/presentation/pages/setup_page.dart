@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../settings/domain/entities/app_settings.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 
 class SetupPage extends StatefulWidget {
@@ -18,7 +17,9 @@ class _SetupPageState extends State<SetupPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  String _selectedTimezone = DateTime.now().timeZoneName;
+  // Not DateTime.now().timeZoneName: that yields abbreviations like 'EAT',
+  // which no zone database can resolve. The user picks a real identifier.
+  String _selectedTimezone = 'UTC';
   final List<String> _selectedReminderTimes = ['20:00'];
   bool _trackWeekends = true;
 
@@ -90,16 +91,22 @@ class _SetupPageState extends State<SetupPage> {
   }
 
   void _completeSetup() {
-    final settings = AppSettings(
-      username: 'demo_user',
-      timezone: _selectedTimezone,
-      remindersEnabled: true,
-      reminderTimes: _selectedReminderTimes,
-      trackWeekends: _trackWeekends,
-      installedAt: DateTime.now(),
-    );
+    final current = context.read<SettingsBloc>().state;
+    if (current is! SettingsLoaded) return;
 
-    context.read<SettingsBloc>().add(UpdateSettings(settings));
+    // installedAt is set once here, and only anchors the analysis era. It
+    // never gates whether a contribution counts toward the streak.
+    context.read<SettingsBloc>().add(
+      UpdateSettings(
+        current.settings.copyWith(
+          timezone: _selectedTimezone,
+          remindersEnabled: true,
+          reminderTimes: _selectedReminderTimes,
+          trackWeekends: _trackWeekends,
+          installedAt: DateTime.now(),
+        ),
+      ),
+    );
 
     context.go(Routes.home);
   }

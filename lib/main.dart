@@ -5,6 +5,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/util/notification_service.dart';
 import 'core/widgets/dev/component_gallery_page.dart';
+import 'features/onboarding/presentation/bloc/auth_bloc.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
 import 'injection_container.dart' as di;
@@ -49,6 +50,7 @@ class _MyAppState extends State<MyApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _settingsBloc),
+        BlocProvider(create: (_) => di.sl<AuthBloc>()),
         BlocProvider(
           create: (_) => di.sl<TrackerBloc>()..add(const SyncTracker()),
         ),

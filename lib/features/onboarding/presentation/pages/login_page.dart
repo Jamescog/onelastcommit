@@ -1,168 +1,269 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/widgets.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
+import '../../domain/entities/device_code.dart';
+import '../bloc/auth_bloc.dart';
 
-class LoginPage extends StatefulWidget {
+/// GitHub device flow.
+///
+/// Phase 1 runs this against a fake so the screen is built against the real
+/// timing: a code that expires, a poll that takes a few rounds. Phase 2 swaps
+/// the repository for the real one — no change here.
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-        );
-
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleGitHubLogin() async {
-    setState(() => _isLoading = true);
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      context.go(Routes.setup);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Spacer(),
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: context.tokens.accent.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.commit,
-                      size: 60,
-                      color: context.tokens.accent,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'One Last Commit',
-                    style: Theme.of(context).textTheme.headlineLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Track your GitHub journey and never miss a coding day',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: context.tokens.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const Spacer(),
-                  _buildGitHubLoginButton(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'By continuing, you agree to connect your GitHub account',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is! AuthAuthorized) return;
+
+        // Record the identity, then let the router's redirect decide where to
+        // go — setup is still incomplete, so it lands there.
+        final settings = context.read<SettingsBloc>().state;
+        if (settings is SettingsLoaded) {
+          context.read<SettingsBloc>().add(
+            UpdateSettings(settings.settings.copyWith(username: state.login)),
+          );
+        }
+        context.go(Routes.setup);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, state) => switch (state) {
+                AuthAwaitingUser(:final grant) => _CodeView(grant: grant),
+                AuthRequestingCode() => const _Working(
+                  message: 'Asking GitHub for a code',
+                ),
+                AuthAuthorized() => const _Working(message: 'Connected'),
+                AuthExpired() => _Retry(
+                  title: 'That code expired',
+                  message: 'Codes last fifteen minutes. Here is a fresh one.',
+                  tone: AppTone.warning,
+                ),
+                AuthFailed(:final message) => _Retry(
+                  title: "Couldn't connect",
+                  message: message,
+                  tone: AppTone.danger,
+                ),
+                _ => const _Intro(),
+              },
             ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildGitHubLoginButton() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            context.tokens.accent,
-            context.tokens.accent.withValues(alpha: 0.8),
+class _Intro extends StatelessWidget {
+  const _Intro();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(Icons.commit, size: 48, color: t.accent),
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          'Connect GitHub',
+          style: text.headlineMedium,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'We read your contribution graph to know whether your streak is '
+          'safe. Your token stays on this device.',
+          style: text.bodyMedium?.copyWith(color: t.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.xxxl),
+        ElevatedButton(
+          onPressed: () =>
+              context.read<AuthBloc>().add(const StartDeviceFlow()),
+          child: const Text('Get a code'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CodeView extends StatelessWidget {
+  const _CodeView({required this.grant});
+
+  final DeviceCodeGrant grant;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Enter this code', style: text.headlineSmall),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'at ${grant.verificationUri}',
+          style: text.bodyMedium?.copyWith(color: t.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        AppCard(
+          tone: AppTone.accent,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: grant.userCode));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Code copied')));
+          },
+          child: Column(
+            children: [
+              Text(
+                grant.userCode,
+                textAlign: TextAlign.center,
+                style: text.displayMedium?.copyWith(
+                  color: t.accent,
+                  letterSpacing: 4,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Tap to copy',
+                style: text.bodySmall?.copyWith(color: t.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _ExpiryCountdown(expiresAt: grant.expiresAt),
+        const SizedBox(height: AppSpacing.xxl),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              'Waiting for you to authorise',
+              style: text.bodySmall?.copyWith(color: t.textSecondary),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: context.tokens.accent.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleGitHubLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+        const SizedBox(height: AppSpacing.xl),
+        TextButton(
+          onPressed: () =>
+              context.read<AuthBloc>().add(const CancelDeviceFlow()),
+          child: const Text('Cancel'),
         ),
-        child: _isLoading
-            ? SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  color: context.tokens.onAccent,
-                  strokeWidth: 2,
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.login, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Sign in with GitHub',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: context.tokens.onAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-      ),
+      ],
+    );
+  }
+}
+
+/// The code's own fifteen-minute clock, shown so the user is never guessing
+/// whether it is still good.
+class _ExpiryCountdown extends StatefulWidget {
+  const _ExpiryCountdown({required this.expiresAt});
+
+  final DateTime expiresAt;
+
+  @override
+  State<_ExpiryCountdown> createState() => _ExpiryCountdownState();
+}
+
+class _ExpiryCountdownState extends State<_ExpiryCountdown> {
+  late final Stream<int> _tick = Stream.periodic(
+    const Duration(seconds: 1),
+    (i) => i,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return StreamBuilder<int>(
+      stream: _tick,
+      builder: (context, _) {
+        final left = widget.expiresAt.difference(DateTime.now());
+        final seconds = left.isNegative ? 0 : left.inSeconds;
+        final m = (seconds ~/ 60).toString().padLeft(2, '0');
+        final s = (seconds % 60).toString().padLeft(2, '0');
+        final low = seconds < 120;
+
+        return Text(
+          'Expires in $m:$s',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: low ? t.warning : t.textSecondary,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Working extends StatelessWidget {
+  const _Working({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(),
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          message,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: context.tokens.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+class _Retry extends StatelessWidget {
+  const _Retry({
+    required this.title,
+    required this.message,
+    required this.tone,
+  });
+
+  final String title;
+  final String message;
+  final AppTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return EmptyStateView(
+      icon: Icons.refresh,
+      title: title,
+      message: message,
+      tone: tone,
+      actionLabel: 'Try again',
+      onAction: () => context.read<AuthBloc>().add(const StartDeviceFlow()),
     );
   }
 }
