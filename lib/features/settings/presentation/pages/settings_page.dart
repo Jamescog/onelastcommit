@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:timezone/timezone.dart' as tz;
 
-import '../../../../core/data/mock_data.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/widgets.dart';
+import '../../../tracker/presentation/bloc/tracker_bloc.dart';
 import '../../domain/entities/app_settings.dart';
 import '../bloc/settings_bloc.dart';
 
@@ -12,233 +15,381 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
-          if (state is SettingsLoaded) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildProfileCard(context),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Account'),
-                const SizedBox(height: 12),
-                _buildAccountCard(context, state.settings),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Notifications'),
-                const SizedBox(height: 12),
-                _buildNotificationsCard(context, state.settings),
-                const SizedBox(height: 24),
-                _buildSectionTitle(context, 'Tracking'),
-                const SizedBox(height: 12),
-                _buildTrackingCard(context, state.settings),
-                const SizedBox(height: 24),
-                _buildDangerZone(context),
-              ],
-            );
+          if (state is! SettingsLoaded) {
+            return const Center(child: CircularProgressIndicator());
           }
-          return const Center(child: CircularProgressIndicator());
+          return _Loaded(settings: state.settings);
         },
       ),
     );
   }
+}
 
-  Widget _buildProfileCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: context.tokens.accent,
-              child: Text(
-                MockUser.mockUser.username[0].toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+class _Loaded extends StatelessWidget {
+  const _Loaded({required this.settings});
+
+  final AppSettings settings;
+
+  void _update(BuildContext context, AppSettings next) =>
+      context.read<SettingsBloc>().add(UpdateSettings(next));
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        const _Account(),
+        const SizedBox(height: AppSpacing.xxl),
+
+        const SectionHeader(title: 'Reminders'),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text('Remind me'),
+                subtitle: const Text(
+                  'A nudge when nothing has counted yet today',
+                ),
+                value: settings.remindersEnabled,
+                onChanged: (v) =>
+                    _update(context, settings.copyWith(remindersEnabled: v)),
+              ),
+              const Divider(height: 1),
+              SwitchListTile(
+                title: const Text('Remind me at weekends'),
+                // The graph does not care what day it is; this only decides
+                // whether the app stays quiet. Naming it plainly avoids the
+                // reading that weekends somehow do not count.
+                subtitle: const Text(
+                  'Weekend contributions always count either way',
+                ),
+                value: settings.trackWeekends,
+                onChanged: settings.remindersEnabled
+                    ? (v) =>
+                          _update(context, settings.copyWith(trackWeekends: v))
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _ReminderTimes(settings: settings),
+        const SizedBox(height: AppSpacing.xxl),
+
+        const SectionHeader(
+          title: 'Time zone',
+          subtitle:
+              'Reminder times are local. The deadline is always UTC '
+              'midnight.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _TimezoneCard(settings: settings),
+        const SizedBox(height: AppSpacing.xxl),
+
+        const SectionHeader(title: 'Appearance'),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          child: SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(value: ThemeMode.system, label: Text('System')),
+              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+            ],
+            selected: {settings.themeMode},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) =>
+                _update(context, settings.copyWith(themeMode: s.first)),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.massive),
+      ],
+    );
+  }
+}
+
+class _Account extends StatelessWidget {
+  const _Account();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+
+    return BlocBuilder<TrackerBloc, TrackerState>(
+      builder: (context, state) {
+        final profile = state is TrackerLoaded ? state.profile : null;
+
+        return AppCard(
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: t.accent,
+                child: Text(
+                  profile?.initial ?? '·',
+                  style: text.titleMedium?.copyWith(color: t.onAccent),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    MockUser.mockUser.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '@${MockUser.mockUser.username}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.tokens.info,
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile?.name ?? 'Not connected',
+                      style: text.titleSmall,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    MockUser.mockUser.bio,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      profile == null
+                          ? 'Connect a GitHub account to start tracking'
+                          : '@${profile.login}',
+                      style: text.bodySmall?.copyWith(color: t.textSecondary),
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ReminderTimes extends StatelessWidget {
+  const _ReminderTimes({required this.settings});
+
+  final AppSettings settings;
+
+  static const _choices = [
+    '08:00',
+    '10:00',
+    '12:00',
+    '14:00',
+    '16:00',
+    '18:00',
+    '19:00',
+    '20:00',
+    '21:00',
+    '22:00',
+    '23:00',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final selected = settings.reminderTimes.toSet();
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('When', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final time in _choices)
+                FilterChip(
+                  label: Text(time),
+                  selected: selected.contains(time),
+                  onSelected: settings.remindersEnabled
+                      ? (on) {
+                          final next = {...selected};
+                          on ? next.add(time) : next.remove(time);
+                          context.read<SettingsBloc>().add(
+                            UpdateSettings(
+                              settings.copyWith(
+                                reminderTimes: next.toList()..sort(),
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
+                ),
+            ],
+          ),
+          if (_afterDeadline(selected, settings.timezone)) ...[
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_outlined, size: 14, color: t.warning),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  // A reminder after the UTC deadline can never help. At
+                  // UTC+13 a 22:00 local nudge lands eleven hours too late.
+                  child: Text(
+                    'Some of these fall after the day has already closed in '
+                    'UTC, so they cannot save a streak.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: t.warning),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(
-        context,
-      ).textTheme.titleMedium?.copyWith(color: context.tokens.textSecondary),
-    );
-  }
-
-  Widget _buildAccountCard(BuildContext context, AppSettings settings) {
-    return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: Icon(Icons.account_circle, color: context.tokens.info),
-            title: const Text('GitHub Username'),
-            subtitle: Text(MockUser.mockUser.username),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: context.tokens.textSecondary,
-            ),
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.email, color: context.tokens.info),
-            title: const Text('Email'),
-            subtitle: const Text('james@example.com'),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: context.tokens.textSecondary,
-            ),
-            onTap: () {},
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildNotificationsCard(BuildContext context, AppSettings settings) {
-    return Card(
-      child: Column(
+  /// True when a chosen local time lands after that day's UTC midnight.
+  static bool _afterDeadline(Set<String> times, String zoneName) {
+    try {
+      final zone = tz.getLocation(zoneName);
+      final now = tz.TZDateTime.now(zone);
+      for (final time in times) {
+        final parts = time.split(':');
+        final at = tz.TZDateTime(
+          zone,
+          now.year,
+          now.month,
+          now.day,
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+        final deadline = DateTime.utc(
+          at.toUtc().year,
+          at.toUtc().month,
+          at.toUtc().day,
+        ).add(const Duration(days: 1));
+        if (at.toUtc().isAfter(deadline)) return true;
+        // Same wall day in the zone but already the next UTC day.
+        if (at.toUtc().day != at.day) return true;
+      }
+    } catch (_) {
+      // An unresolvable zone is reported by the picker, not here.
+    }
+    return false;
+  }
+}
+
+class _TimezoneCard extends StatelessWidget {
+  const _TimezoneCard({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final valid = _resolves(settings.timezone);
+
+    return AppCard(
+      tone: valid ? null : AppTone.warning,
+      onTap: () async {
+        final picked = await showModalBottomSheet<String>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const _TimezonePicker(),
+        );
+        if (picked != null && context.mounted) {
+          context.read<SettingsBloc>().add(
+            UpdateSettings(settings.copyWith(timezone: picked)),
+          );
+        }
+      },
+      child: Row(
         children: [
-          SwitchListTile(
-            secondary: Icon(
-              Icons.notifications_active,
-              color: context.tokens.danger,
-            ),
-            title: const Text('Daily Reminders'),
-            subtitle: const Text('Get reminded to commit every day'),
-            value: settings.remindersEnabled,
-            onChanged: (val) {
-              context.read<SettingsBloc>().add(
-                UpdateSettings(
-                  AppSettings(
-                    username: settings.username,
-                    githubToken: settings.githubToken,
-                    timezone: settings.timezone,
-                    remindersEnabled: val,
-                    reminderTimes: settings.reminderTimes,
-                    trackWeekends: settings.trackWeekends,
-                    installedAt: settings.installedAt,
-                  ),
+          Icon(
+            valid ? Icons.public : Icons.warning_amber_outlined,
+            size: 18,
+            color: valid ? t.textSecondary : t.warning,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  settings.timezone,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.schedule, color: context.tokens.info),
-            title: const Text('Reminder Times'),
-            subtitle: Text(settings.reminderTimes.join(', ')),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: context.tokens.textSecondary,
-            ),
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrackingCard(BuildContext context, AppSettings settings) {
-    return Card(
-      child: Column(
-        children: [
-          SwitchListTile(
-            secondary: Icon(Icons.calendar_today, color: context.tokens.accent),
-            title: const Text('Track Weekends'),
-            subtitle: const Text('Include Saturday and Sunday'),
-            value: settings.trackWeekends,
-            onChanged: (val) {
-              context.read<SettingsBloc>().add(
-                UpdateSettings(
-                  AppSettings(
-                    username: settings.username,
-                    githubToken: settings.githubToken,
-                    timezone: settings.timezone,
-                    remindersEnabled: settings.remindersEnabled,
-                    reminderTimes: settings.reminderTimes,
-                    trackWeekends: val,
-                    installedAt: settings.installedAt,
+                if (!valid) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Not a valid IANA identifier. Pick one from the list.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: t.warning),
                   ),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.language, color: context.tokens.info),
-            title: const Text('Timezone'),
-            subtitle: Text(settings.timezone),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: context.tokens.textSecondary,
+                ],
+              ],
             ),
-            onTap: () {},
           ),
+          Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
   }
 
-  Widget _buildDangerZone(BuildContext context) {
-    return Card(
-      color: context.tokens.danger.withValues(alpha: 0.1),
-      child: Column(
+  static bool _resolves(String name) {
+    try {
+      tz.getLocation(name);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// Searchable list of real IANA zones.
+///
+/// The previous build offered fifteen hardcoded cities and defaulted to
+/// DateTime.now().timeZoneName, which yields abbreviations like "EAT" that no
+/// zone database can resolve.
+class _TimezonePicker extends StatefulWidget {
+  const _TimezonePicker();
+
+  @override
+  State<_TimezonePicker> createState() => _TimezonePickerState();
+}
+
+class _TimezonePickerState extends State<_TimezonePicker> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final all = tz.timeZoneDatabase.locations.keys.toList()..sort();
+    final matches = _query.isEmpty
+        ? all
+        : all
+              .where((z) => z.toLowerCase().contains(_query.toLowerCase()))
+              .toList();
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.8,
+      builder: (context, controller) => Column(
         children: [
-          ListTile(
-            leading: Icon(Icons.logout, color: context.tokens.danger),
-            title: const Text('Sign Out'),
-            subtitle: const Text('Sign out of your account'),
-            onTap: () {},
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Search zones',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.delete_forever, color: context.tokens.danger),
-            title: const Text('Delete Account'),
-            subtitle: const Text('Permanently delete all data'),
-            onTap: () {},
+          Expanded(
+            child: ListView.builder(
+              controller: controller,
+              itemCount: matches.length,
+              itemBuilder: (context, i) => ListTile(
+                title: Text(matches[i]),
+                onTap: () => Navigator.of(context).pop(matches[i]),
+              ),
+            ),
           ),
         ],
       ),

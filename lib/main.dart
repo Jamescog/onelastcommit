@@ -40,6 +40,10 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+  /// Falls back to the device setting until settings have loaded.
+  static ThemeMode _mode(SettingsState s) =>
+      s is SettingsLoaded ? s.settings.themeMode : ThemeMode.system;
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -57,14 +61,16 @@ class _MyAppState extends State<MyApp> {
               debugShowCheckedModeBanner: false,
               home: const ComponentGalleryPage(),
             )
-          : MaterialApp.router(
-              title: 'One Last Commit',
-              theme: AppTheme.light,
-              darkTheme: AppTheme.dark,
-              // Follows the device until the preference lands in settings.
-              themeMode: ThemeMode.system,
-              debugShowCheckedModeBanner: false,
-              routerConfig: _router,
+          : BlocBuilder<SettingsBloc, SettingsState>(
+              buildWhen: (a, b) => _mode(a) != _mode(b),
+              builder: (context, state) => MaterialApp.router(
+                title: 'One Last Commit',
+                theme: AppTheme.light,
+                darkTheme: AppTheme.dark,
+                themeMode: _mode(state),
+                debugShowCheckedModeBanner: false,
+                routerConfig: _router,
+              ),
             ),
     );
   }

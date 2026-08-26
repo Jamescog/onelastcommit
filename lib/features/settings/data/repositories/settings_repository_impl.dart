@@ -23,16 +23,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<Either<Failure, void>> saveSettings(AppSettings settings) async {
     try {
-      final model = AppSettingsModel(
-        username: settings.username,
-        githubToken: settings.githubToken,
-        timezone: settings.timezone,
-        remindersEnabled: settings.remindersEnabled,
-        reminderTimes: settings.reminderTimes,
-        trackWeekends: settings.trackWeekends,
-        installedAt: settings.installedAt,
-      );
-      await localDataSource.saveSettings(model);
+      await localDataSource.saveSettings(_toModel(settings));
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure());
@@ -44,20 +35,24 @@ class SettingsRepositoryImpl implements SettingsRepository {
     try {
       final settings = await localDataSource.getSettings();
       if (settings.installedAt == null) {
-        final newSettings = AppSettingsModel(
-          username: settings.username,
-          githubToken: settings.githubToken,
-          timezone: settings.timezone,
-          remindersEnabled: settings.remindersEnabled,
-          reminderTimes: settings.reminderTimes,
-          trackWeekends: settings.trackWeekends,
-          installedAt: DateTime.now(),
+        await localDataSource.saveSettings(
+          _toModel(settings.copyWith(installedAt: DateTime.now())),
         );
-        await localDataSource.saveSettings(newSettings);
       }
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure());
     }
   }
+
+  static AppSettingsModel _toModel(AppSettings s) => AppSettingsModel(
+    username: s.username,
+    githubToken: s.githubToken,
+    timezone: s.timezone,
+    remindersEnabled: s.remindersEnabled,
+    reminderTimes: s.reminderTimes,
+    trackWeekends: s.trackWeekends,
+    themeMode: s.themeMode,
+    installedAt: s.installedAt,
+  );
 }
