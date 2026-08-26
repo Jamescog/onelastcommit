@@ -1,5 +1,5 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -29,17 +29,10 @@ class DatabaseService {
         occurred_at_utc TEXT NOT NULL
       )
     ''');
-
-    await db.execute('''
-      CREATE TABLE app_state (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    ''');
   }
 
   Future<void> close() async {
     final db = await instance.database;
-    db.close();
+    await db.close();
   }
 }

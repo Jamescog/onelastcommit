@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
+
 import '../../../../core/data/mock_data.dart';
-import '../bloc/settings_bloc.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/app_settings.dart';
+import '../bloc/settings_bloc.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -78,8 +79,8 @@ class SettingsPage extends StatelessWidget {
                   Text(
                     '@${MockUser.mockUser.username}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.electricBlue,
-                        ),
+                      color: AppColors.electricBlue,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -100,9 +101,9 @@ class SettingsPage extends StatelessWidget {
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.slateGray,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(color: AppColors.slateGray),
     );
   }
 
@@ -111,10 +112,16 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.account_circle, color: AppColors.electricBlue),
+            leading: const Icon(
+              Icons.account_circle,
+              color: AppColors.electricBlue,
+            ),
             title: const Text('GitHub Username'),
             subtitle: Text(MockUser.mockUser.username),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.slateGray),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.slateGray,
+            ),
             onTap: () {},
           ),
           const Divider(height: 1),
@@ -122,7 +129,10 @@ class SettingsPage extends StatelessWidget {
             leading: const Icon(Icons.email, color: AppColors.electricBlue),
             title: const Text('Email'),
             subtitle: const Text('james@example.com'),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.slateGray),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.slateGray,
+            ),
             onTap: () {},
           ),
         ],
@@ -135,25 +145,28 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile(
-            secondary: const Icon(Icons.notifications_active, color: AppColors.alertOrange),
+            secondary: const Icon(
+              Icons.notifications_active,
+              color: AppColors.alertOrange,
+            ),
             title: const Text('Daily Reminders'),
             subtitle: const Text('Get reminded to commit every day'),
             value: settings.remindersEnabled,
             activeColor: AppColors.commitGreen,
             onChanged: (val) {
               context.read<SettingsBloc>().add(
-                    UpdateSettings(
-                      AppSettings(
-                        username: settings.username,
-                        githubToken: settings.githubToken,
-                        timezone: settings.timezone,
-                        remindersEnabled: val,
-                        reminderTimes: settings.reminderTimes,
-                        trackWeekends: settings.trackWeekends,
-                        installedAt: settings.installedAt,
-                      ),
-                    ),
-                  );
+                UpdateSettings(
+                  AppSettings(
+                    username: settings.username,
+                    githubToken: settings.githubToken,
+                    timezone: settings.timezone,
+                    remindersEnabled: val,
+                    reminderTimes: settings.reminderTimes,
+                    trackWeekends: settings.trackWeekends,
+                    installedAt: settings.installedAt,
+                  ),
+                ),
+              );
             },
           ),
           const Divider(height: 1),
@@ -161,7 +174,10 @@ class SettingsPage extends StatelessWidget {
             leading: const Icon(Icons.schedule, color: AppColors.electricBlue),
             title: const Text('Reminder Times'),
             subtitle: Text(settings.reminderTimes.join(', ')),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.slateGray),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.slateGray,
+            ),
             onTap: () {},
           ),
         ],
@@ -174,25 +190,28 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         children: [
           SwitchListTile(
-            secondary: const Icon(Icons.calendar_today, color: AppColors.commitGreen),
+            secondary: const Icon(
+              Icons.calendar_today,
+              color: AppColors.commitGreen,
+            ),
             title: const Text('Track Weekends'),
             subtitle: const Text('Include Saturday and Sunday'),
             value: settings.trackWeekends,
             activeColor: AppColors.commitGreen,
             onChanged: (val) {
               context.read<SettingsBloc>().add(
-                    UpdateSettings(
-                      AppSettings(
-                        username: settings.username,
-                        githubToken: settings.githubToken,
-                        timezone: settings.timezone,
-                        remindersEnabled: settings.remindersEnabled,
-                        reminderTimes: settings.reminderTimes,
-                        trackWeekends: val,
-                        installedAt: settings.installedAt,
-                      ),
-                    ),
-                  );
+                UpdateSettings(
+                  AppSettings(
+                    username: settings.username,
+                    githubToken: settings.githubToken,
+                    timezone: settings.timezone,
+                    remindersEnabled: settings.remindersEnabled,
+                    reminderTimes: settings.reminderTimes,
+                    trackWeekends: val,
+                    installedAt: settings.installedAt,
+                  ),
+                ),
+              );
             },
           ),
           const Divider(height: 1),
@@ -200,7 +219,10 @@ class SettingsPage extends StatelessWidget {
             leading: const Icon(Icons.language, color: AppColors.electricBlue),
             title: const Text('Timezone'),
             subtitle: Text(settings.timezone),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.slateGray),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.slateGray,
+            ),
             onTap: () {},
           ),
         ],
@@ -221,7 +243,10 @@ class SettingsPage extends StatelessWidget {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.delete_forever, color: AppColors.alertOrange),
+            leading: const Icon(
+              Icons.delete_forever,
+              color: AppColors.alertOrange,
+            ),
             title: const Text('Delete Account'),
             subtitle: const Text('Permanently delete all data'),
             onTap: () {},

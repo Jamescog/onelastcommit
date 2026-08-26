@@ -18,7 +18,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       githubToken: sharedPreferences.getString('github_token') ?? '',
       timezone: sharedPreferences.getString('timezone') ?? 'UTC',
       remindersEnabled: sharedPreferences.getBool('reminders_enabled') ?? true,
-      reminderTimes: sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
+      reminderTimes:
+          sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
       trackWeekends: sharedPreferences.getBool('weekend_mode') ?? false,
       installedAt: sharedPreferences.getString('installed_at') != null
           ? DateTime.parse(sharedPreferences.getString('installed_at')!)
@@ -31,8 +32,14 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     await sharedPreferences.setString('username', settings.username);
     await sharedPreferences.setString('github_token', settings.githubToken);
     await sharedPreferences.setString('timezone', settings.timezone);
-    await sharedPreferences.setBool('reminders_enabled', settings.remindersEnabled);
-    await sharedPreferences.setStringList('reminder_times', settings.reminderTimes);
+    await sharedPreferences.setBool(
+      'reminders_enabled',
+      settings.remindersEnabled,
+    );
+    await sharedPreferences.setStringList(
+      'reminder_times',
+      settings.reminderTimes,
+    );
     await sharedPreferences.setBool('weekend_mode', settings.trackWeekends);
     if (settings.installedAt != null) {
       await sharedPreferences.setString(

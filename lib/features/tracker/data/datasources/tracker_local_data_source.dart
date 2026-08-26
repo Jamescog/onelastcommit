@@ -1,6 +1,7 @@
-import 'package:sqflite/sqflite.dart';
-import '../../../../core/util/db_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
+
+import '../../../../core/util/db_service.dart';
 import '../models/commit_event_model.dart';
 
 abstract class TrackerLocalDataSource {
@@ -35,7 +36,7 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   @override
   Future<void> cacheEvents(List<CommitEventModel> events) async {
     final db = await databaseService.database;
-    
+
     await db.transaction((txn) async {
       for (var event in events) {
         await txn.insert(
@@ -66,6 +67,9 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
 
   @override
   Future<void> saveLastFetchedAt(DateTime time) async {
-    await sharedPreferences.setString('last_fetched_at', time.toUtc().toIso8601String());
+    await sharedPreferences.setString(
+      'last_fetched_at',
+      time.toUtc().toIso8601String(),
+    );
   }
 }

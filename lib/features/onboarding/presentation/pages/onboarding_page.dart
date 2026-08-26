@@ -16,19 +16,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final List<OnboardingContent> _pages = [
     OnboardingContent(
       title: 'Track Your GitHub Journey',
-      description: 'Monitor your daily commits, contributions, and maintain your coding streak with beautiful visualizations.',
+      description:
+          'Monitor your daily commits, contributions, and maintain your coding streak with beautiful visualizations.',
       icon: Icons.show_chart,
       color: AppColors.electricBlue,
     ),
     OnboardingContent(
       title: 'Never Miss a Day',
-      description: 'Smart notifications remind you to make that one last commit before the day ends.',
+      description:
+          'Smart notifications remind you to make that one last commit before the day ends.',
       icon: Icons.notifications_active,
       color: AppColors.alertOrange,
     ),
     OnboardingContent(
       title: 'Stay Motivated',
-      description: 'Watch your contribution graph grow and celebrate your coding achievements every day.',
+      description:
+          'Watch your contribution graph grow and celebrate your coding achievements every day.',
       icon: Icons.emoji_events,
       color: AppColors.commitGreen,
     ),
@@ -53,16 +56,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
         curve: Curves.easeInOut,
       );
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
     }
   }
 
   void _skip() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
   }
 
   @override
@@ -94,10 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _skip,
-                    child: const Text('Skip'),
-                  ),
+                  TextButton(onPressed: _skip, child: const Text('Skip')),
                 ],
               ),
             ),
@@ -163,11 +163,7 @@ class _OnboardingPageContent extends StatelessWidget {
               color: content.color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              content.icon,
-              size: 100,
-              color: content.color,
-            ),
+            child: Icon(content.icon, size: 100, color: content.color),
           ),
           const SizedBox(height: 48),
           Text(
@@ -178,9 +174,9 @@ class _OnboardingPageContent extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             content.description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.slateGray,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.slateGray),
             textAlign: TextAlign.center,
           ),
         ],

@@ -1,11 +1,12 @@
 import 'package:dartz/dartz.dart';
+
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../../settings/data/datasources/settings_local_data_source.dart';
 import '../../domain/entities/commit_event.dart';
 import '../../domain/repositories/tracker_repository.dart';
 import '../datasources/tracker_local_data_source.dart';
 import '../datasources/tracker_remote_data_source.dart';
-import '../../../settings/data/datasources/settings_local_data_source.dart';
 
 class TrackerRepositoryImpl implements TrackerRepository {
   final TrackerRemoteDataSource remoteDataSource;

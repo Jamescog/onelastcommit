@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'injection_container.dart' as di;
-import 'core/util/notification_service.dart';
+
 import 'core/theme/app_theme.dart';
+import 'core/util/notification_service.dart';
+import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
-import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/tracker/presentation/pages/home_page.dart';
+import 'injection_container.dart' as di;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,8 @@ class AppLanding extends StatelessWidget {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
         if (state is SettingsLoaded) {
-          if (state.settings.username.isEmpty || state.settings.installedAt == null) {
+          if (state.settings.username.isEmpty ||
+              state.settings.installedAt == null) {
             return const OnboardingPage();
           } else {
             return const HomePage();

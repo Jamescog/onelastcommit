@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+
 import '../../../../core/data/mock_data.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
-import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,7 +11,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -123,11 +124,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         },
         body: TabBarView(
           controller: _tabController,
-          children: [
-            _TodayTab(),
-            _StatsTab(),
-            _ReposTab(),
-          ],
+          children: [_TodayTab(), _StatsTab(), _ReposTab()],
         ),
       ),
     );
@@ -145,11 +142,12 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.deepSpace,
-      child: _tabBar,
-    );
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: AppColors.deepSpace, child: _tabBar);
   }
 
   @override
@@ -240,7 +238,10 @@ class _TodayTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: hasCommits
                         ? AppColors.commitGreen
@@ -261,18 +262,18 @@ class _TodayTab extends StatelessWidget {
                 Text(
                   hasCommits ? 'Awesome Work!' : 'One Last Commit',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   hasCommits
                       ? '${MockData.todayCommits.length} commits today. Keep it going!'
                       : 'Don\'t break your streak. Push some code today!',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.slateGray,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(color: AppColors.slateGray),
                 ),
               ],
             ),
@@ -338,9 +339,9 @@ class _TodayTab extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
@@ -382,17 +383,13 @@ class _TodayTab extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.commit,
-            color: Colors.white,
-            size: 28,
-          ),
+          child: const Icon(Icons.commit, color: Colors.white, size: 28),
         ),
         title: Text(
           commit.message,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,15 +404,19 @@ class _TodayTab extends StatelessWidget {
               child: Text(
                 commit.repo,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.electricBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: AppColors.electricBlue,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.access_time, size: 14, color: AppColors.slateGray),
+                const Icon(
+                  Icons.access_time,
+                  size: 14,
+                  color: AppColors.slateGray,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   _formatTimeAgo(commit.timestamp),
@@ -423,7 +424,10 @@ class _TodayTab extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.commitGreen.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -431,14 +435,17 @@ class _TodayTab extends StatelessWidget {
                   child: Text(
                     '+${commit.additions}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.commitGreen,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.commitGreen,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.alertOrange.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -446,9 +453,9 @@ class _TodayTab extends StatelessWidget {
                   child: Text(
                     '-${commit.deletions}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.alertOrange,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.alertOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -489,7 +496,7 @@ class _TodayTab extends StatelessWidget {
   String _formatTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inHours < 1) {
       return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
@@ -534,7 +541,7 @@ class _StatsTab extends StatelessWidget {
 
   Widget _buildStatsCards(BuildContext context) {
     final stats = MockData.contributionStats;
-    
+
     return Column(
       children: [
         Row(
@@ -606,15 +613,12 @@ class _StatsTab extends StatelessWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -627,14 +631,18 @@ class _ContributionGraph extends StatelessWidget {
   Widget build(BuildContext context) {
     final contributions = MockData.contributionMap;
     final sortedDates = contributions.keys.toList()..sort();
-    final recentDates = sortedDates.reversed.take(91).toList().reversed.toList();
+    final recentDates = sortedDates.reversed
+        .take(91)
+        .toList()
+        .reversed
+        .toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = 13;
         final rows = 7;
         final cellSize = (constraints.maxWidth - (columns - 1) * 4) / columns;
-        
+
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
@@ -653,7 +661,7 @@ class _ContributionGraph extends StatelessWidget {
               itemBuilder: (context, index) {
                 final date = recentDates[index];
                 final count = contributions[date] ?? 0;
-                
+
                 return Container(
                   decoration: BoxDecoration(
                     color: _getContributionColor(count),
@@ -695,10 +703,7 @@ class _ReposTab extends StatelessWidget {
                 color: AppColors.electricBlue.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.folder,
-                color: AppColors.electricBlue,
-              ),
+              child: const Icon(Icons.folder, color: AppColors.electricBlue),
             ),
             title: Text(
               repo['name'] as String,
@@ -731,14 +736,22 @@ class _ReposTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.star_border, size: 14, color: AppColors.slateGray),
+                    const Icon(
+                      Icons.star_border,
+                      size: 14,
+                      color: AppColors.slateGray,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${repo['stars']}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(width: 12),
-                    const Icon(Icons.fork_right, size: 14, color: AppColors.slateGray),
+                    const Icon(
+                      Icons.fork_right,
+                      size: 14,
+                      color: AppColors.slateGray,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${repo['forks']}',

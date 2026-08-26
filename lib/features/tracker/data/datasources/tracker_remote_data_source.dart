@@ -28,11 +28,11 @@ class TrackerRemoteDataSourceImpl implements TrackerRemoteDataSource {
     String? token,
   }) async {
     final url = 'https://api.github.com/users/$username/events';
-    
+
     final response = await client.get(
       Uri.parse(url),
       headers: {
-        if (etag != null) 'If-None-Match': etag,
+        'If-None-Match': ?etag,
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'token $token',
         },

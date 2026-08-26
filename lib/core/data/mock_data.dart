@@ -101,10 +101,14 @@ class MockData {
   static Map<DateTime, int> _generateContributions() {
     final map = <DateTime, int>{};
     final now = DateTime.now();
-    
+
     for (int i = 0; i < 365; i++) {
-      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-      
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
+
       if (i < 7) {
         map[date] = 3 + (i % 2);
       } else if (i < 30) {
@@ -115,7 +119,7 @@ class MockData {
         map[date] = [0, 0, 0, 1, 2, 1, 3][(i ~/ 7) % 7];
       }
     }
-    
+
     return map;
   }
 

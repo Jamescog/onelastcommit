@@ -41,13 +41,8 @@ class AppTheme {
           backgroundColor: AppColors.commitGreen,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -55,15 +50,11 @@ class AppTheme {
           foregroundColor: AppColors.electricBlue,
           side: const BorderSide(color: AppColors.electricBlue),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.electricBlue,
-        ),
+        style: TextButton.styleFrom(foregroundColor: AppColors.electricBlue),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -129,18 +120,9 @@ class AppTheme {
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
-        bodyLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 16,
-        ),
-        bodyMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 14,
-        ),
-        bodySmall: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-        ),
+        bodyLarge: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+        bodyMedium: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+        bodySmall: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         labelLarge: TextStyle(
           color: AppColors.textPrimary,
           fontSize: 14,
