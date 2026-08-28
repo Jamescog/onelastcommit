@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../features/settings/domain/entities/app_settings.dart';
 import '../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../features/tracker/presentation/bloc/tracker_bloc.dart';
+import '../../../injection_container.dart' show useFakeData;
 import '../../dev/dev_scenario.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_tokens.dart';
@@ -50,6 +51,17 @@ class DevPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Scenario', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                useFakeData
+                    ? 'Serving generated data.'
+                    : 'Inactive — this build reads live GitHub data. '
+                          'Rebuild with --dart-define=FAKE_DATA=true to use '
+                          'these.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: useFakeData ? t.textSecondary : t.warning,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               ValueListenableBuilder<Scenario>(
                 valueListenable: activeScenario,

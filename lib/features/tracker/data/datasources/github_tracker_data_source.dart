@@ -26,6 +26,35 @@ class GitHubTrackerDataSource implements TrackerDataSource {
   /// several.
   static const maxWindow = Duration(days: 364);
 
+  /// How many repositories to pull commit history for.
+  ///
+  /// One query per repository, so this bounds sync cost. Against a 5,000/hour
+  /// budget ten queries is nothing, but sync time scales with it, so the
+  /// busiest repositories are fetched and the tail is left to the calendar.
+  static const historyRepoLimit = 10;
+
+  static const _historyQuery = r'''
+query($owner: String!, $name: String!, $since: GitTimestamp!) {
+  repository(owner: $owner, name: $name) {
+    nameWithOwner
+    isPrivate
+    defaultBranchRef {
+      name
+      target {
+        ... on Commit {
+          history(first: 60, since: $since) {
+            nodes {
+              oid messageHeadline committedDate additions deletions
+              author { user { login } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+''';
+
   static const _query = r'''
 query($from: DateTime!, $to: DateTime!) {
   viewer {
@@ -111,16 +140,201 @@ query($from: DateTime!, $to: DateTime!) {
 
     final days = byDate.values.toList()
       ..sort((a, b) => a.date.compareTo(b.date));
-    return days;
+
+    return _enrichRecent(days);
+  }
+
+  /// Adds wall-clock times and uncounted pushes to the most recent days.
+  ///
+  /// The calendar carries neither. Times come from commit history — the events
+  /// feed's PushEvent payload no longer carries commits at all — and only the
+  /// recent window is enriched, because a query per repository is not worth
+  /// spending on a year of history nobody scrolls to.
+  Future<List<ContributionDay>> _enrichRecent(
+    List<ContributionDay> days,
+  ) async {
+    if (days.isEmpty) return days;
+
+    final now = DateTime.now().toUtc();
+    final since = now.subtract(const Duration(days: 30));
+
+    final List<ContributionActivity> commits;
+    final Map<String, int> uncounted;
+    try {
+      final viewer = await _fetch(from: since, to: now);
+      commits = await _commitActivity(viewer, since);
+      uncounted = await _uncountedByDate(viewer['login'] as String);
+    } catch (_) {
+      // Enrichment is a bonus. Losing it must not lose the calendar, which is
+      // the only thing the streak actually depends on.
+      return days;
+    }
+
+    final firstAt = <String, DateTime>{};
+    final lastAt = <String, DateTime>{};
+    for (final c in commits) {
+      final key = _dateKey(c.occurredAt);
+      final first = firstAt[key];
+      final last = lastAt[key];
+      if (first == null || c.occurredAt.isBefore(first)) {
+        firstAt[key] = c.occurredAt;
+      }
+      if (last == null || c.occurredAt.isAfter(last)) {
+        lastAt[key] = c.occurredAt;
+      }
+    }
+
+    return [
+      for (final day in days)
+        if (firstAt.containsKey(day.date) || uncounted.containsKey(day.date))
+          ContributionDay(
+            date: day.date,
+            count: day.count,
+            level: day.level,
+            firstContributionAt: firstAt[day.date],
+            lastContributionAt: lastAt[day.date],
+            countedPushes: day.count,
+            uncountedPushes: uncounted[day.date] ?? 0,
+          )
+        else
+          day,
+    ];
+  }
+
+  /// Best-effort count of pushes that earned no square, by date.
+  ///
+  /// Deliberately incomplete. GitHub trimmed the PushEvent payload to refs and
+  /// ids, and the public feed omits private work entirely — on the account
+  /// this was built against it held 4 events for a day the calendar scored 19.
+  /// What survives is the branch name, which is enough to spot the most common
+  /// cause: work pushed somewhere the graph does not count. The UI must
+  /// present this as recent public pushes, never as a complete accounting.
+  Future<Map<String, int>> _uncountedByDate(String login) async {
+    final events = await client.getList('/users/$login/events?per_page=100');
+    if (events == null) return const {};
+
+    final byDate = <String, int>{};
+    for (final event in events) {
+      if (event is! Map<String, dynamic>) continue;
+      if (event['type'] != 'PushEvent') continue;
+
+      final ref = (event['payload'] as Map<String, dynamic>?)?['ref'];
+      if (ref is! String) continue;
+      final branch = ref.split('/').last;
+      // Without the repo's default branch to hand, the conventional names are
+      // the only signal available.
+      if (branch == 'main' || branch == 'master') continue;
+
+      final at = DateTime.tryParse((event['created_at'] as String?) ?? '');
+      if (at == null) continue;
+      final key = _dateKey(at);
+      byDate[key] = (byDate[key] ?? 0) + 1;
+    }
+    return byDate;
+  }
+
+  static String _dateKey(DateTime at) {
+    final u = at.toUtc();
+    return '${u.year.toString().padLeft(4, '0')}-'
+        '${u.month.toString().padLeft(2, '0')}-'
+        '${u.day.toString().padLeft(2, '0')}';
   }
 
   @override
   Future<List<ContributionActivity>> getActivity({int limit = 20}) async {
     final now = DateTime.now().toUtc();
-    final items = parseActivity(
-      await _fetch(from: now.subtract(const Duration(days: 30)), to: now),
-    );
+    final since = now.subtract(const Duration(days: 30));
+    final viewer = await _fetch(from: since, to: now);
+
+    // Issues, PRs and reviews come from the contributions collection; commits
+    // come from repository history. The events feed used to carry commit
+    // messages and no longer does — its PushEvent payload has been trimmed to
+    // refs and ids — so history is the only source for what was actually
+    // written.
+    final items = parseActivity(viewer)
+      ..addAll(await _commitActivity(viewer, since));
+
+    items.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     return items.length <= limit ? items : items.sublist(0, limit);
+  }
+
+  /// Commit history for the repositories with the most contributions.
+  Future<List<ContributionActivity>> _commitActivity(
+    Map<String, dynamic> viewer,
+    DateTime since,
+  ) async {
+    final login = viewer['login'] as String;
+    final repos = parseRepos(viewer).take(historyRepoLimit);
+    final commits = <ContributionActivity>[];
+
+    for (final repo in repos) {
+      final parts = repo.name.split('/');
+      if (parts.length != 2) continue;
+      try {
+        final data = await client.query(
+          _historyQuery,
+          variables: {
+            'owner': parts.first,
+            'name': parts.last,
+            'since': since.toUtc().toIso8601String(),
+          },
+        );
+        commits.addAll(parseHistory(data, login: login));
+      } catch (_) {
+        // One unreadable repository must not lose the others. A repo can
+        // vanish or lose access between the two queries.
+        continue;
+      }
+    }
+    return commits;
+  }
+
+  /// Commits authored by [login] on a repository's default branch.
+  ///
+  /// The author filter matters: history on a shared repository is everyone's,
+  /// and counting a colleague's commits as the user's would inflate every
+  /// number on the analysis page.
+  static List<ContributionActivity> parseHistory(
+    Map<String, dynamic> data, {
+    required String login,
+  }) {
+    final repo = data['repository'];
+    if (repo is! Map<String, dynamic>) return const [];
+    final branch = repo['defaultBranchRef'];
+    if (branch is! Map<String, dynamic>) return const [];
+    final target = branch['target'];
+    if (target is! Map<String, dynamic>) return const [];
+    final nodes = (target['history'] as Map<String, dynamic>?)?['nodes'];
+    if (nodes is! List) return const [];
+
+    final name = repo['nameWithOwner'] as String;
+    final isPrivate = repo['isPrivate'] as bool? ?? false;
+    final out = <ContributionActivity>[];
+
+    for (final node in nodes) {
+      if (node is! Map<String, dynamic>) continue;
+      final author =
+          ((node['author'] as Map<String, dynamic>?)?['user']
+              as Map<String, dynamic>?)?['login'];
+      if (author != login) continue;
+
+      final oid = node['oid'] as String? ?? '';
+      final committedRaw = (node['committedDate'] as String?) ?? '';
+      out.add(
+        ContributionActivity(
+          id: oid.isEmpty ? '$name@$committedRaw' : oid,
+          type: ContributionType.commit,
+          repoName: name,
+          occurredAt: DateTime.tryParse(committedRaw) ?? DateTime.now().toUtc(),
+          title: node['messageHeadline'] as String?,
+          isPrivate: isPrivate,
+          sha: oid.isEmpty ? null : oid.substring(0, 7),
+          additions: (node['additions'] as num?)?.toInt(),
+          deletions: (node['deletions'] as num?)?.toInt(),
+        ),
+      );
+    }
+    return out;
   }
 
   @override

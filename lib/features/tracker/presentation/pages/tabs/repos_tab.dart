@@ -75,7 +75,10 @@ class _Loaded extends StatelessWidget {
         if (problem.isNotEmpty) ...[
           const SectionHeader(
             title: 'Work that never counted',
-            subtitle: 'Pushes here earn no square on your graph.',
+            subtitle:
+                'Recent public pushes that earned no square. GitHub '
+                'does not expose enough to make this complete — private '
+                'work never appears here.',
           ),
           const SizedBox(height: AppSpacing.md),
           ...problem.map(

@@ -14,7 +14,7 @@ class DatabaseService {
 
   /// v1 stored push events. v2 stores contributions — a different question
   /// with a different answer. See PLAN.md section 1.
-  static const _version = 2;
+  static const _version = 3;
 
   Future<Database> get database async {
     return _database ??= await _initDB('olc.db');
@@ -32,6 +32,18 @@ class DatabaseService {
   }
 
   Future<void> _upgrade(Database db, int from, int to) async {
+    if (from < 3 && from >= 2) {
+      // Commit history carries diff stats the events feed never did.
+      for (final column in const [
+        'sha TEXT',
+        'additions INTEGER',
+        'deletions INTEGER',
+      ]) {
+        await db.execute(
+          'ALTER TABLE contribution_activity ADD COLUMN $column',
+        );
+      }
+    }
     if (from < 2) {
       // Push events cannot be converted into contributions — the two do not
       // agree about which work counts. Drop and refetch.
@@ -68,7 +80,10 @@ class DatabaseService {
         title TEXT,
         counted INTEGER NOT NULL DEFAULT 1,
         branch TEXT,
-        is_private INTEGER NOT NULL DEFAULT 0
+        is_private INTEGER NOT NULL DEFAULT 0,
+        sha TEXT,
+        additions INTEGER,
+        deletions INTEGER
       )
     ''');
     await db.execute(

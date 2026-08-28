@@ -17,6 +17,7 @@ import 'features/settings/data/repositories/settings_repository_impl.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
 import 'features/tracker/data/datasources/fake_tracker_data_source.dart';
+import 'features/tracker/data/datasources/github_tracker_data_source.dart';
 import 'features/tracker/data/datasources/tracker_data_source.dart';
 import 'features/tracker/data/datasources/tracker_local_data_source.dart';
 import 'features/tracker/data/repositories/tracker_repository_impl.dart';
@@ -33,6 +34,10 @@ const githubClientId = String.fromEnvironment(
 
 /// Keeps the scripted auth flow for UI review: `--dart-define=FAKE_AUTH=true`.
 const useFakeAuth = bool.fromEnvironment('FAKE_AUTH');
+
+/// Serves generated scenarios instead of GitHub: `--dart-define=FAKE_DATA=true`.
+/// The dev panel's scenario switcher only does anything under this flag.
+const useFakeData = bool.fromEnvironment('FAKE_DATA');
 
 Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -67,11 +72,12 @@ Future<void> init() async {
     () => SettingsRepositoryImpl(localDataSource: sl()),
   );
 
-  // Phase 1 runs entirely on the fake — there is no real source yet, so this
-  // is registered in every build, not just debug. Phase 2 swaps it for the
-  // GitHub-backed one: same interface, no other change.
+  // Real GitHub data by default. The fake stays available for UI review and
+  // for driving the scenario switcher: --dart-define=FAKE_DATA=true
   sl.registerLazySingleton<TrackerDataSource>(
-    () => const FakeTrackerDataSource(),
+    () => useFakeData
+        ? const FakeTrackerDataSource()
+        : GitHubTrackerDataSource(client: sl()),
   );
   sl.registerLazySingleton<TrackerLocalDataSource>(
     () => TrackerLocalDataSourceImpl(databaseService: sl()),

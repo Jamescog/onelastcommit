@@ -55,6 +55,34 @@ class ActivityRow extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (activity.hasDiffStats) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    children: [
+                      if (activity.additions != null)
+                        Text(
+                          '+${activity.additions}',
+                          style: text.bodySmall?.copyWith(color: t.accent),
+                        ),
+                      if (activity.deletions != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          '-${activity.deletions}',
+                          style: text.bodySmall?.copyWith(color: t.danger),
+                        ),
+                      ],
+                      if (activity.sha != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          activity.sha!,
+                          style: text.bodySmall?.copyWith(
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
                 if (activity.type == ContributionType.commit &&
                     activity.count > 1) ...[
                   const SizedBox(height: AppSpacing.sm),
