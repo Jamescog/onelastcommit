@@ -12,10 +12,15 @@ class DeviceCodeGrant extends Equatable {
     required this.verificationUri,
     required this.expiresAt,
     required this.interval,
+    this.deviceCode = '',
   });
 
   /// The eight characters the user types on github.com.
   final String userCode;
+
+  /// The opaque code polled against. Never shown — the user code is the one
+  /// they read out.
+  final String deviceCode;
 
   final String verificationUri;
 
@@ -32,5 +37,11 @@ class DeviceCodeGrant extends Equatable {
   }
 
   @override
-  List<Object?> get props => [userCode, verificationUri, expiresAt, interval];
+  List<Object?> get props => [
+    userCode,
+    deviceCode,
+    verificationUri,
+    expiresAt,
+    interval,
+  ];
 }

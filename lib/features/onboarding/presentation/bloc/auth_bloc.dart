@@ -95,20 +95,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     emit(AuthAwaitingUser(grant));
 
-    // Poll until authorised or the code expires. The repository owns the
-    // interval; GitHub penalises polling faster than it asks for.
+    // Poll until authorised, denied, or the code expires. GitHub penalises
+    // polling faster than the interval it asks for, so slowDownTo wins over
+    // our own value whenever it is set.
+    var interval = grant.interval;
     while (!_cancelled) {
       if (DateTime.now().isAfter(grant.expiresAt)) {
         emit(const AuthExpired());
         return;
       }
+
       final result = await repository.pollForToken(grant);
-      final login = result.fold((_) => null, (l) => l);
-      if (login != null) {
-        emit(AuthAuthorized(login));
-        return;
+      switch (result) {
+        case AuthGranted(:final login):
+          emit(AuthAuthorized(login));
+          return;
+        case AuthCodeExpired():
+          emit(const AuthExpired());
+          return;
+        case AuthDenied():
+          emit(const AuthFailed('You cancelled on GitHub.'));
+          return;
+        case AuthPollFailed(:final message):
+          emit(AuthFailed(message));
+          return;
+        case AuthPending(:final slowDownTo):
+          if (slowDownTo != null) interval = slowDownTo;
       }
-      await Future<void>.delayed(Duration(seconds: grant.interval));
+
+      await Future<void>.delayed(Duration(seconds: interval));
     }
   }
 }

@@ -7,7 +7,9 @@ import 'core/github/github_client.dart';
 import 'core/github/github_credentials.dart';
 import 'core/util/db_service.dart';
 import 'core/util/notification_service.dart';
+import 'features/onboarding/data/datasources/github_auth_api.dart';
 import 'features/onboarding/data/repositories/fake_auth_repository.dart';
+import 'features/onboarding/data/repositories/github_auth_repository.dart';
 import 'features/onboarding/domain/repositories/auth_repository.dart';
 import 'features/onboarding/presentation/bloc/auth_bloc.dart';
 import 'features/settings/data/datasources/settings_local_data_source.dart';
@@ -22,6 +24,15 @@ import 'features/tracker/domain/repositories/tracker_repository.dart';
 import 'features/tracker/presentation/bloc/tracker_bloc.dart';
 
 final sl = GetIt.instance;
+
+/// The OAuth app the device flow authorises against.
+const githubClientId = String.fromEnvironment(
+  'GITHUB_CLIENT_ID',
+  defaultValue: 'Ov23licyi3BfdyGCbAoP',
+);
+
+/// Keeps the scripted auth flow for UI review: `--dart-define=FAKE_AUTH=true`.
+const useFakeAuth = bool.fromEnvironment('FAKE_AUTH');
 
 Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -38,8 +49,17 @@ Future<void> init() async {
   sl.registerFactory(() => AuthBloc(repository: sl()));
   sl.registerFactory(() => TrackerBloc(repository: sl()));
 
-  // Phase 2 replaces this with the real GitHub device flow.
-  sl.registerLazySingleton<AuthRepository>(FakeAuthRepository.new);
+  // The client id is public: the device flow exists so a client that cannot
+  // keep a secret does not need one. Override per build with
+  // --dart-define=GITHUB_CLIENT_ID=...
+  sl.registerLazySingleton(
+    () => GitHubAuthApi(client: sl(), clientId: githubClientId),
+  );
+  sl.registerLazySingleton<AuthRepository>(
+    () => useFakeAuth
+        ? FakeAuthRepository()
+        : GitHubAuthRepository(api: sl(), credentials: sl(), client: sl()),
+  );
   sl.registerLazySingleton<SettingsLocalDataSource>(
     () => SettingsLocalDataSourceImpl(sharedPreferences: sl()),
   );
