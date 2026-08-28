@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:olc/core/error/failures.dart';
 import 'package:olc/core/theme/app_theme.dart';
+import 'package:olc/core/util/notification_service.dart';
 import 'package:olc/core/widgets/widgets.dart';
 import 'package:olc/features/settings/domain/entities/app_settings.dart';
 import 'package:olc/features/settings/domain/repositories/settings_repository.dart';
@@ -18,6 +19,7 @@ import 'package:olc/features/tracker/presentation/pages/analysis_page.dart';
 import 'package:olc/features/tracker/presentation/pages/tabs/repos_tab.dart';
 import 'package:olc/features/tracker/presentation/pages/tabs/stats_tab.dart';
 import 'package:olc/features/tracker/presentation/pages/tabs/today_tab.dart';
+import 'package:olc/injection_container.dart';
 
 /// Does every screen actually lay out?
 ///
@@ -30,6 +32,15 @@ import 'package:olc/features/tracker/presentation/pages/tabs/today_tab.dart';
 /// executes a layout, so neither could have caught it. This does.
 void main() {
   final source = FakeTrackerDataSource();
+
+  setUpAll(() {
+    // Settings asks the platform what notifications are actually permitted.
+    // Off-device the plugin resolves to null and reports everything allowed,
+    // which is all this needs — the point is that the lookup does not throw.
+    if (!sl.isRegistered<NotificationService>()) {
+      sl.registerLazySingleton(NotificationService.new);
+    }
+  });
 
   Future<void> pump(WidgetTester tester, Widget child) async {
     await tester.pumpWidget(

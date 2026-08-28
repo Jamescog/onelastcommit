@@ -9,6 +9,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../tracker/presentation/bloc/tracker_bloc.dart';
 import '../../domain/entities/app_settings.dart';
 import '../bloc/settings_bloc.dart';
+import '../widgets/permission_notice.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -47,6 +48,7 @@ class _Loaded extends StatelessWidget {
 
         const SectionHeader(title: 'Reminders'),
         const SizedBox(height: AppSpacing.md),
+        const PermissionNotice(),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(

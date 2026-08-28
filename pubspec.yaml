@@ -25,6 +25,7 @@ dependencies:
   dartz: ^0.10.1
   go_router: ^18.0.0
   flutter_secure_storage: ^9.2.4
+  workmanager: ^0.10.9
 
 dev_dependencies:
   flutter_test:
