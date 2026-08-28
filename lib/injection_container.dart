@@ -1,6 +1,10 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/github/github_client.dart';
+import 'core/github/github_credentials.dart';
 import 'core/util/db_service.dart';
 import 'core/util/notification_service.dart';
 import 'features/onboarding/data/repositories/fake_auth_repository.dart';
@@ -23,6 +27,10 @@ Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   sl.registerLazySingleton(() => sharedPreferences);
 
+  sl.registerLazySingleton(http.Client.new);
+  sl.registerLazySingleton(() => const FlutterSecureStorage());
+  sl.registerLazySingleton(() => GitHubCredentials(storage: sl()));
+  sl.registerLazySingleton(() => GitHubClient(client: sl(), credentials: sl()));
   sl.registerLazySingleton(() => DatabaseService.instance);
   sl.registerLazySingleton(() => NotificationService());
 
