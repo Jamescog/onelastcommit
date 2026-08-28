@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/dev/dev_scenario.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 
 class SetupPage extends StatefulWidget {
@@ -20,28 +23,12 @@ class _SetupPageState extends State<SetupPage> {
   int _currentPage = 0;
 
   // Not DateTime.now().timeZoneName: that yields abbreviations like 'EAT',
-  // which no zone database can resolve. The user picks a real identifier.
+  // which no zone database can resolve. The platform is asked for the real
+  // identifier instead, and the user can override it.
   String _selectedTimezone = 'UTC';
+  String? _detected;
   final List<String> _selectedReminderTimes = ['20:00'];
   bool _trackWeekends = true;
-
-  final List<String> _commonTimezones = [
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Toronto',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Asia/Dubai',
-    'Asia/Kolkata',
-    'Australia/Sydney',
-    'Pacific/Auckland',
-    'UTC',
-  ];
 
   final List<String> _availableTimes = [
     '08:00',
@@ -61,6 +48,22 @@ class _SetupPageState extends State<SetupPage> {
     '22:00',
     '23:00',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _detectTimezone();
+  }
+
+  Future<void> _detectTimezone() async {
+    final zone = await const TimezoneService().detect();
+    if (zone == null || !mounted) return;
+    setState(() {
+      _detected = zone;
+      // Only adopt it if the user has not already chosen something.
+      if (_selectedTimezone == 'UTC') _selectedTimezone = zone;
+    });
+  }
 
   @override
   void dispose() {
@@ -199,22 +202,57 @@ class _SetupPageState extends State<SetupPage> {
             ),
           ),
           const SizedBox(height: 32),
-          Card(
-            child: Column(
-              children: _commonTimezones.map((timezone) {
-                final isSelected = timezone == _selectedTimezone;
-                return ListTile(
-                  title: Text(timezone.replaceAll('_', ' ')),
-                  trailing: isSelected
-                      ? Icon(Icons.check_circle, color: context.tokens.accent)
-                      : null,
-                  selected: isSelected,
-                  selectedTileColor: context.tokens.accent.withValues(
-                    alpha: 0.1,
+          AppCard(
+            onTap: () async {
+              final picked = await TimezonePicker.show(
+                context,
+                detected: _detected,
+              );
+              if (picked != null) {
+                setState(() => _selectedTimezone = picked);
+              }
+            },
+            child: Row(
+              children: [
+                Icon(
+                  _detected == _selectedTimezone
+                      ? Icons.my_location
+                      : Icons.public,
+                  size: 20,
+                  color: context.tokens.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedTimezone.split('/').last.replaceAll('_', ' '),
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _detected == _selectedTimezone
+                            ? 'Detected on this device · '
+                                  '${TimezoneService.offsetLabel(_selectedTimezone)}'
+                            : '$_selectedTimezone · '
+                                  '${TimezoneService.offsetLabel(_selectedTimezone)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.tokens.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  onTap: () => setState(() => _selectedTimezone = timezone),
-                );
-              }).toList(),
+                ),
+                Icon(Icons.chevron_right, color: context.tokens.textSecondary),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Search over 400 zones if this is not right.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.tokens.textSecondary,
             ),
           ),
         ],

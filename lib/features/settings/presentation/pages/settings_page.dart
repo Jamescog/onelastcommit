@@ -4,6 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../tracker/presentation/bloc/tracker_bloc.dart';
@@ -298,11 +299,9 @@ class _TimezoneCard extends StatelessWidget {
     return AppCard(
       tone: valid ? null : AppTone.warning,
       onTap: () async {
-        final picked = await showModalBottomSheet<String>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const _TimezonePicker(),
-        );
+        final detected = await const TimezoneService().detect();
+        if (!context.mounted) return;
+        final picked = await TimezonePicker.show(context, detected: detected);
         if (picked != null && context.mounted) {
           context.read<SettingsBloc>().add(
             UpdateSettings(settings.copyWith(timezone: picked)),
@@ -325,6 +324,13 @@ class _TimezoneCard extends StatelessWidget {
                   settings.timezone,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (valid)
+                  Text(
+                    'UTC${TimezoneService.offsetLabel(settings.timezone)}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                  ),
                 if (!valid) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -350,61 +356,5 @@ class _TimezoneCard extends StatelessWidget {
     } catch (_) {
       return false;
     }
-  }
-}
-
-/// Searchable list of real IANA zones.
-///
-/// The previous build offered fifteen hardcoded cities and defaulted to
-/// DateTime.now().timeZoneName, which yields abbreviations like "EAT" that no
-/// zone database can resolve.
-class _TimezonePicker extends StatefulWidget {
-  const _TimezonePicker();
-
-  @override
-  State<_TimezonePicker> createState() => _TimezonePickerState();
-}
-
-class _TimezonePickerState extends State<_TimezonePicker> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final all = tz.timeZoneDatabase.locations.keys.toList()..sort();
-    final matches = _query.isEmpty
-        ? all
-        : all
-              .where((z) => z.toLowerCase().contains(_query.toLowerCase()))
-              .toList();
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.8,
-      builder: (context, controller) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: TextField(
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Search zones',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) => setState(() => _query = v),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              controller: controller,
-              itemCount: matches.length,
-              itemBuilder: (context, i) => ListTile(
-                title: Text(matches[i]),
-                onTap: () => Navigator.of(context).pop(matches[i]),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

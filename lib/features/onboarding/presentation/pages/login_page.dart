@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -103,13 +104,37 @@ class _Intro extends StatelessWidget {
   }
 }
 
-class _CodeView extends StatelessWidget {
+class _CodeView extends StatefulWidget {
   const _CodeView({required this.grant});
 
   final DeviceCodeGrant grant;
 
   @override
+  State<_CodeView> createState() => _CodeViewState();
+}
+
+class _CodeViewState extends State<_CodeView> {
+  bool _opened = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // On the clipboard the moment it appears, so the browser trip is a paste
+    // rather than memorising eight characters and typing them.
+    Clipboard.setData(ClipboardData(text: widget.grant.userCode));
+  }
+
+  Future<void> _openGitHub() async {
+    setState(() => _opened = true);
+    await launchUrl(
+      Uri.parse(widget.grant.verificationUri),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final grant = widget.grant;
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
 
@@ -117,10 +142,10 @@ class _CodeView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Enter this code', style: text.headlineSmall),
+        Text('Your code', style: text.headlineSmall),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'at ${grant.verificationUri}',
+          'Copied. Paste it on GitHub to finish signing in.',
           style: text.bodyMedium?.copyWith(color: t.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -145,15 +170,21 @@ class _CodeView extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Tap to copy',
+                'Tap to copy again',
                 style: text.bodySmall?.copyWith(color: t.textSecondary),
               ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
+        ElevatedButton.icon(
+          onPressed: _openGitHub,
+          icon: const Icon(Icons.open_in_new, size: 18),
+          label: Text(_opened ? 'Open GitHub again' : 'Open GitHub'),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _ExpiryCountdown(expiresAt: grant.expiresAt),
-        const SizedBox(height: AppSpacing.xxl),
+        const SizedBox(height: AppSpacing.xl),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -163,9 +194,13 @@ class _CodeView extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: AppSpacing.md),
-            Text(
-              'Waiting for you to authorise',
-              style: text.bodySmall?.copyWith(color: t.textSecondary),
+            Flexible(
+              child: Text(
+                _opened
+                    ? 'Waiting for you to finish on GitHub'
+                    : 'Waiting — this page updates by itself',
+                style: text.bodySmall?.copyWith(color: t.textSecondary),
+              ),
             ),
           ],
         ),
