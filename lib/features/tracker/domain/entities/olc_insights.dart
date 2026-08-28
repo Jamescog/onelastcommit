@@ -89,6 +89,7 @@ class OlcInsights extends Equatable {
     required this.installedAt,
     required this.daysTracked,
     required this.daysWithContributions,
+    this.daysWatched = 0,
     required this.saves,
     required this.remindersSent,
     required this.composition,
@@ -105,7 +106,15 @@ class OlcInsights extends Equatable {
 
   // --- Era header ---
   final DateTime installedAt;
+
+  /// Days of GitHub history available — up to a year. Calendar-derived
+  /// sections cover this.
   final int daysTracked;
+
+  /// Days since the app was installed. Reminder-derived sections cover this,
+  /// and it is zero on the day of install.
+  final int daysWatched;
+
   final int daysWithContributions;
 
   // --- Impact: the app justifying its own existence ---
@@ -160,6 +169,7 @@ class OlcInsights extends Equatable {
   List<Object?> get props => [
     installedAt,
     daysTracked,
+    daysWatched,
     daysWithContributions,
     saves,
     remindersSent,

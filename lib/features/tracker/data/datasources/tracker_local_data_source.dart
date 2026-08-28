@@ -35,6 +35,12 @@ abstract class TrackerLocalDataSource {
   /// Only for switching demo scenarios: a normal sync refuses to overwrite a
   /// sealed day, which is what stops a stale device clobbering good data.
   Future<void> clearAll();
+
+  /// The build that last wrote this mirror, or null if it has never been
+  /// stamped.
+  Future<String?> getBuildId();
+
+  Future<void> setBuildId(String id);
 }
 
 class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
@@ -44,6 +50,7 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
 
   static const _kLastSynced = 'last_synced_at';
   static const _kProfile = 'profile';
+  static const _kBuildId = 'build_id';
 
   Future<Database> get _db => databaseService.database;
 
@@ -227,6 +234,12 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       'created_at': DateTime.now().toUtc().toIso8601String(),
     });
   }
+
+  @override
+  Future<String?> getBuildId() => _state(_kBuildId);
+
+  @override
+  Future<void> setBuildId(String id) => _setState(_kBuildId, id);
 
   @override
   Future<void> clearAll() async {

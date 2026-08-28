@@ -8,6 +8,7 @@ import '../../../injection_container.dart' show useFakeData;
 import '../../dev/dev_scenario.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_tokens.dart';
+import '../../util/build_identity.dart';
 import '../widgets.dart';
 import 'component_gallery_page.dart';
 
@@ -103,34 +104,11 @@ class DevPanel extends StatelessWidget {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(Icons.history_toggle_off),
-                title: const Text('Backdate install by 90 days'),
-                // The analysis page counts only days since install, so a
-                // fresh install has a one-day era and nothing to plot.
-                subtitle: const Text('Gives the analysis page a real era'),
-                onTap: () {
-                  final state = context.read<SettingsBloc>().state;
-                  if (state is! SettingsLoaded) return;
-                  context.read<SettingsBloc>().add(
-                    UpdateSettings(
-                      state.settings.copyWith(
-                        installedAt: DateTime.now().subtract(
-                          Duration(days: demoInstalledDaysAgo.value),
-                        ),
-                      ),
-                    ),
-                  );
-                  context.read<TrackerBloc>().add(const LoadTracker());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Install date backdated')),
-                  );
-                },
-              ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.refresh),
                 title: const Text('Wipe and refetch'),
+                subtitle: Text('Build $buildId'),
                 onTap: () =>
                     context.read<TrackerBloc>().add(const ResetTracker()),
               ),

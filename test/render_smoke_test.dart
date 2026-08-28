@@ -155,6 +155,9 @@ class _StubTracker implements TrackerRepository {
   @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async =>
       const Right(DataFreshness.fresh);
+
+  @override
+  Future<bool> resetIfBuildChanged() async => false;
 }
 
 class _StubSettings implements SettingsRepository {

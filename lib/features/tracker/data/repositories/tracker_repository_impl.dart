@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/util/build_identity.dart';
 import '../../../settings/data/datasources/settings_local_data_source.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
@@ -139,9 +140,26 @@ class TrackerRepositoryImpl implements TrackerRepository {
   }
 
   @override
+  Future<bool> resetIfBuildChanged() async {
+    try {
+      final stored = await local.getBuildId();
+      if (stored == buildId) return false;
+
+      // Rows written by different parsing code are not worth reasoning about.
+      // Cheaper to refetch than to guess which fields are still correct.
+      await local.clearAll();
+      await local.setBuildId(buildId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async {
     try {
       await local.clearAll();
+      await local.setBuildId(buildId);
     } catch (_) {
       return Left(CacheFailure());
     }
