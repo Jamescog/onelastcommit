@@ -143,12 +143,14 @@ class TrackerRepositoryImpl implements TrackerRepository {
   Future<bool> resetIfBuildChanged() async {
     try {
       final stored = await local.getBuildId();
-      if (stored == buildId) return false;
+      if (stored == BuildIdentity.value) return false;
 
       // Rows written by different parsing code are not worth reasoning about.
       // Cheaper to refetch than to guess which fields are still correct.
-      await local.clearAll();
-      await local.setBuildId(buildId);
+      // Reminder history survives: this device wrote it, and no refetch can
+      // bring it back.
+      await local.clearRemoteMirror();
+      await local.setBuildId(BuildIdentity.value);
       return true;
     } catch (_) {
       return false;
@@ -159,7 +161,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
   Future<Either<Failure, DataFreshness>> resetAndSync() async {
     try {
       await local.clearAll();
-      await local.setBuildId(buildId);
+      await local.setBuildId(BuildIdentity.value);
     } catch (_) {
       return Left(CacheFailure());
     }

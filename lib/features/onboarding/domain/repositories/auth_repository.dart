@@ -38,6 +38,23 @@ class AuthDenied extends AuthPoll {
   const AuthDenied();
 }
 
+/// The network dropped, but the flow is still alive.
+///
+/// Separated from [AuthPollFailed] because it is the ordinary case, not an
+/// error: the user is in a browser with this app in the background, and a
+/// poll that never lands says nothing about whether they signed in. Treating
+/// it as failure threw away a perfectly good device code.
+class AuthTransient extends AuthPoll {
+  const AuthTransient(this.message, {this.afterGrant = false});
+
+  final String message;
+
+  /// The token was already issued and only the identity lookup is left. The
+  /// device code's expiry stops applying at that point — there is nothing
+  /// left to exchange, so the retry must not be abandoned when it lapses.
+  final bool afterGrant;
+}
+
 class AuthPollFailed extends AuthPoll {
   const AuthPollFailed(this.message);
 

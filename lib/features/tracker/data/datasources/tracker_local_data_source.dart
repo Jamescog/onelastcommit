@@ -36,6 +36,13 @@ abstract class TrackerLocalDataSource {
   /// sealed day, which is what stops a stale device clobbering good data.
   Future<void> clearAll();
 
+  /// Drops only the rows that came from GitHub.
+  ///
+  /// Reminder events and the outbox are written by this device and can never
+  /// be fetched again. A build change invalidates *parsing*, not history, so
+  /// the resync must not take them with it.
+  Future<void> clearRemoteMirror();
+
   /// The build that last wrote this mirror, or null if it has never been
   /// stamped.
   Future<String?> getBuildId();
@@ -255,6 +262,26 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       ]) {
         await txn.delete(table);
       }
+    });
+  }
+
+  @override
+  Future<void> clearRemoteMirror() async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      for (final table in const [
+        'contribution_days',
+        'contribution_activity',
+        'repo_activity',
+      ]) {
+        await txn.delete(table);
+      }
+      // The mirror is empty, so nothing may claim to have been synced.
+      await txn.delete(
+        'sync_state',
+        where: 'key IN (?, ?)',
+        whereArgs: const [_kLastSynced, _kProfile],
+      );
     });
   }
 

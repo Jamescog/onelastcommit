@@ -172,6 +172,10 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
       emit(const TrackerLoading());
     }
 
+    // Ahead of the fetch, not after it: doing this in _onLoad alone would
+    // sync, then discover the build had changed, wipe what it just wrote and
+    // sync a second time.
+    await repository.resetIfBuildChanged();
     await repository.sync();
     add(const LoadTracker());
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/util/build_identity.dart';
 import 'core/util/notification_service.dart';
 import 'core/widgets/dev/component_gallery_page.dart';
 import 'features/onboarding/presentation/bloc/auth_bloc.dart';
@@ -16,6 +17,9 @@ const bool _showGallery = bool.fromEnvironment('GALLERY');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before anything reads the mirror: a build that parses differently must
+  // not serve rows the previous build wrote.
+  await BuildIdentity.resolve();
   await di.init();
   await di.sl<NotificationService>().init();
   runApp(const MyApp());

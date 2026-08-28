@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +8,10 @@ import 'package:olc/core/error/failures.dart';
 import 'package:olc/core/theme/app_theme.dart';
 import 'package:olc/core/util/notification_service.dart';
 import 'package:olc/core/widgets/widgets.dart';
+import 'package:olc/features/onboarding/domain/entities/device_code.dart';
+import 'package:olc/features/onboarding/domain/repositories/auth_repository.dart';
+import 'package:olc/features/onboarding/presentation/bloc/auth_bloc.dart';
+import 'package:olc/features/onboarding/presentation/pages/login_page.dart';
 import 'package:olc/features/settings/domain/entities/app_settings.dart';
 import 'package:olc/features/settings/domain/repositories/settings_repository.dart';
 import 'package:olc/features/settings/presentation/bloc/settings_bloc.dart';
@@ -72,6 +78,29 @@ void main() {
     testWidgets('Repos', (t) => pump(t, const ReposTab()));
     testWidgets('Analysis', (t) => pump(t, const AnalysisPage()));
     testWidgets('Settings', (t) => pump(t, const SettingsPage()));
+  });
+
+  testWidgets('the device-code screen lays out', (tester) async {
+    // Never pumpAndSettle here: the screen holds a spinner and a one-second
+    // countdown, so it is never quiet.
+    final auth = AuthBloc(repository: _StubAuth())..add(const StartDeviceFlow());
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthBloc>.value(value: auth),
+          BlocProvider<SettingsBloc>(
+            create: (_) =>
+                SettingsBloc(repository: _StubSettings())..add(LoadSettings()),
+          ),
+        ],
+        child: MaterialApp(theme: AppTheme.dark, home: const LoginPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('WXYZ-1234'), findsOneWidget);
   });
 
   group('AppCard survives an unbounded height', () {
@@ -179,4 +208,34 @@ class _StubSettings implements SettingsRepository {
 
   @override
   Future<Either<Failure, void>> markInstalled() async => const Right(null);
+}
+
+
+/// A device flow that hands out a code and then waits forever, which is the
+/// state the screen spends its whole life in.
+class _StubAuth implements AuthRepository {
+  @override
+  Future<Either<Failure, DeviceCodeGrant>> requestDeviceCode() async => Right(
+    DeviceCodeGrant(
+      userCode: 'WXYZ-1234',
+      verificationUri: 'https://github.com/login/device',
+      expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+      interval: 5,
+      deviceCode: 'device',
+    ),
+  );
+
+  /// Never answers. Returning [AuthPending] would leave the bloc's backoff
+  /// timer pending past the end of the test, which the binding fails on — and
+  /// closing the bloc to drain it deadlocks, because the fake clock only moves
+  /// when the tester pumps. An unfinished future is not a timer.
+  @override
+  Future<AuthPoll> pollForToken(DeviceCodeGrant grant) =>
+      Completer<AuthPoll>().future;
+
+  @override
+  Future<bool> refreshIfNeeded() async => true;
+
+  @override
+  Future<void> signOut() async {}
 }

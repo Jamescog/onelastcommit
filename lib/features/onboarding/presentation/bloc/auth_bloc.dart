@@ -38,12 +38,17 @@ class AuthRequestingCode extends AuthState {
 
 /// The code is on screen and we are polling. The user is on github.com.
 class AuthAwaitingUser extends AuthState {
-  const AuthAwaitingUser(this.grant);
+  const AuthAwaitingUser(this.grant, {this.hint});
 
   final DeviceCodeGrant grant;
 
+  /// What to say under the spinner when the poll is not simply waiting —
+  /// a dropped connection, or a sign-in being finished. Null while the wait
+  /// is ordinary.
+  final String? hint;
+
   @override
-  List<Object?> get props => [grant];
+  List<Object?> get props => [grant, hint];
 }
 
 class AuthAuthorized extends AuthState {
@@ -99,13 +104,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // polling faster than the interval it asks for, so slowDownTo wins over
     // our own value whenever it is set.
     var interval = grant.interval;
+
+    // Set once GitHub has issued the token and only the identity lookup is
+    // outstanding. From then on the code's clock is irrelevant: it has already
+    // been spent, so letting it lapse would abandon a sign-in that succeeded.
+    var granted = false;
+    var dropped = 0;
+
     while (!_cancelled) {
-      if (DateTime.now().isAfter(grant.expiresAt)) {
+      if (!granted && DateTime.now().isAfter(grant.expiresAt)) {
         emit(const AuthExpired());
         return;
       }
 
       final result = await repository.pollForToken(grant);
+      if (_cancelled) return;
+
       switch (result) {
         case AuthGranted(:final login):
           emit(AuthAuthorized(login));
@@ -119,11 +133,41 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         case AuthPollFailed(:final message):
           emit(AuthFailed(message));
           return;
+        case AuthTransient(:final afterGrant):
+          granted = granted || afterGrant;
+          dropped++;
+          // Twenty tries is a couple of minutes of a connection that will not
+          // hold. Past that, saying so beats spinning.
+          if (dropped > 20) {
+            emit(
+              AuthFailed(
+                granted
+                    ? 'GitHub approved the sign-in, but the connection went '
+                          'before we could finish it. Try again.'
+                    : 'The connection keeps dropping. Try again when you have '
+                          'a steadier one.',
+              ),
+            );
+            return;
+          }
+          emit(
+            AuthAwaitingUser(
+              grant,
+              hint: granted
+                  ? 'Approved — finishing sign-in'
+                  : 'Connection dropped. Still trying.',
+            ),
+          );
         case AuthPending(:final slowDownTo):
+          dropped = 0;
           if (slowDownTo != null) interval = slowDownTo;
+          // Clears any hint left by an earlier drop.
+          emit(AuthAwaitingUser(grant));
       }
 
-      await Future<void>.delayed(Duration(seconds: interval));
+      // Nothing is left to wait for a user to do once the token is issued, so
+      // the identity retry runs faster than GitHub's polling interval.
+      await Future<void>.delayed(Duration(seconds: granted ? 3 : interval));
     }
   }
 }

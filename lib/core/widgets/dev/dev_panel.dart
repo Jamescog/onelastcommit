@@ -108,7 +108,7 @@ class DevPanel extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.refresh),
                 title: const Text('Wipe and refetch'),
-                subtitle: Text('Build $buildId'),
+                subtitle: Text('Build ${BuildIdentity.value}'),
                 onTap: () =>
                     context.read<TrackerBloc>().add(const ResetTracker()),
               ),
