@@ -36,15 +36,19 @@ void main() {
       MultiBlocProvider(
         providers: [
           BlocProvider<TrackerBloc>(
-            create: (_) => TrackerBloc(repository: _StubTracker(source))
-              ..add(const LoadTracker()),
+            create: (_) =>
+                TrackerBloc(repository: _StubTracker(source))
+                  ..add(const LoadTracker()),
           ),
           BlocProvider<SettingsBloc>(
-            create: (_) => SettingsBloc(repository: _StubSettings())
-              ..add(LoadSettings()),
+            create: (_) =>
+                SettingsBloc(repository: _StubSettings())..add(LoadSettings()),
           ),
         ],
-        child: MaterialApp(theme: AppTheme.dark, home: Scaffold(body: child)),
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: Scaffold(body: child),
+        ),
       ),
     );
     await tester.pumpAndSettle(const Duration(seconds: 2));
