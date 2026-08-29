@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The logo's own night-sky navy, so the adaptive icon's background
+         layer is indistinguishable from the artwork it sits behind. -->
+    <color name="ic_launcher_background">#1D1F28</color>
+</resources>

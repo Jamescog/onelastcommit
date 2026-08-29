@@ -4,11 +4,14 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/reminder_scheduler.dart';
+import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../tracker/presentation/bloc/tracker_bloc.dart';
 import '../../domain/entities/app_settings.dart';
 import '../bloc/settings_bloc.dart';
+import '../widgets/permission_notice.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -47,6 +50,7 @@ class _Loaded extends StatelessWidget {
 
         const SectionHeader(title: 'Reminders'),
         const SizedBox(height: AppSpacing.md),
+        const PermissionNotice(),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -226,7 +230,7 @@ class _ReminderTimes extends StatelessWidget {
                 ),
             ],
           ),
-          if (_afterDeadline(selected, settings.timezone)) ...[
+          if (_cutsItClose(selected, settings.timezone)) ...[
             const SizedBox(height: AppSpacing.md),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,11 +238,9 @@ class _ReminderTimes extends StatelessWidget {
                 Icon(Icons.warning_amber_outlined, size: 14, color: t.warning),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  // A reminder after the UTC deadline can never help. At
-                  // UTC+13 a 22:00 local nudge lands eleven hours too late.
                   child: Text(
-                    'Some of these fall after the day has already closed in '
-                    'UTC, so they cannot save a streak.',
+                    'Some of these fire under two hours before the day closes '
+                    'in UTC — a tight window to save a streak in.',
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: t.warning),
@@ -252,35 +254,12 @@ class _ReminderTimes extends StatelessWidget {
     );
   }
 
-  /// True when a chosen local time lands after that day's UTC midnight.
-  static bool _afterDeadline(Set<String> times, String zoneName) {
-    try {
-      final zone = tz.getLocation(zoneName);
-      final now = tz.TZDateTime.now(zone);
-      for (final time in times) {
-        final parts = time.split(':');
-        final at = tz.TZDateTime(
-          zone,
-          now.year,
-          now.month,
-          now.day,
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
-        final deadline = DateTime.utc(
-          at.toUtc().year,
-          at.toUtc().month,
-          at.toUtc().day,
-        ).add(const Duration(days: 1));
-        if (at.toUtc().isAfter(deadline)) return true;
-        // Same wall day in the zone but already the next UTC day.
-        if (at.toUtc().day != at.day) return true;
-      }
-    } catch (_) {
-      // An unresolvable zone is reported by the picker, not here.
-    }
-    return false;
-  }
+  /// True when a chosen time leaves little room before the next UTC midnight.
+  /// The definition lives with the scheduler so warning and scheduling can
+  /// never disagree about what "late" means.
+  static bool _cutsItClose(Set<String> times, String zoneName) => times.any(
+    (time) => ReminderScheduler.tooCloseToDeadline(time, zoneName),
+  );
 }
 
 class _TimezoneCard extends StatelessWidget {
@@ -296,11 +275,9 @@ class _TimezoneCard extends StatelessWidget {
     return AppCard(
       tone: valid ? null : AppTone.warning,
       onTap: () async {
-        final picked = await showModalBottomSheet<String>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const _TimezonePicker(),
-        );
+        final detected = await const TimezoneService().detect();
+        if (!context.mounted) return;
+        final picked = await TimezonePicker.show(context, detected: detected);
         if (picked != null && context.mounted) {
           context.read<SettingsBloc>().add(
             UpdateSettings(settings.copyWith(timezone: picked)),
@@ -323,6 +300,13 @@ class _TimezoneCard extends StatelessWidget {
                   settings.timezone,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (valid)
+                  Text(
+                    'UTC${TimezoneService.offsetLabel(settings.timezone)}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                  ),
                 if (!valid) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -348,61 +332,5 @@ class _TimezoneCard extends StatelessWidget {
     } catch (_) {
       return false;
     }
-  }
-}
-
-/// Searchable list of real IANA zones.
-///
-/// The previous build offered fifteen hardcoded cities and defaulted to
-/// DateTime.now().timeZoneName, which yields abbreviations like "EAT" that no
-/// zone database can resolve.
-class _TimezonePicker extends StatefulWidget {
-  const _TimezonePicker();
-
-  @override
-  State<_TimezonePicker> createState() => _TimezonePickerState();
-}
-
-class _TimezonePickerState extends State<_TimezonePicker> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final all = tz.timeZoneDatabase.locations.keys.toList()..sort();
-    final matches = _query.isEmpty
-        ? all
-        : all
-              .where((z) => z.toLowerCase().contains(_query.toLowerCase()))
-              .toList();
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.8,
-      builder: (context, controller) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: TextField(
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Search zones',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) => setState(() => _query = v),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              controller: controller,
-              itemCount: matches.length,
-              itemBuilder: (context, i) => ListTile(
-                title: Text(matches[i]),
-                onTap: () => Navigator.of(context).pop(matches[i]),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../features/settings/domain/entities/app_settings.dart';
 import '../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../features/tracker/presentation/bloc/tracker_bloc.dart';
+import '../../../injection_container.dart' show useFakeData;
 import '../../dev/dev_scenario.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_tokens.dart';
+import '../../util/build_identity.dart';
 import '../widgets.dart';
 import 'component_gallery_page.dart';
 
@@ -50,6 +52,17 @@ class DevPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Scenario', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                useFakeData
+                    ? 'Serving generated data.'
+                    : 'Inactive — this build reads live GitHub data. '
+                          'Rebuild with --dart-define=FAKE_DATA=true to use '
+                          'these.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: useFakeData ? t.textSecondary : t.warning,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               ValueListenableBuilder<Scenario>(
                 valueListenable: activeScenario,
@@ -91,34 +104,11 @@ class DevPanel extends StatelessWidget {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(Icons.history_toggle_off),
-                title: const Text('Backdate install by 90 days'),
-                // The analysis page counts only days since install, so a
-                // fresh install has a one-day era and nothing to plot.
-                subtitle: const Text('Gives the analysis page a real era'),
-                onTap: () {
-                  final state = context.read<SettingsBloc>().state;
-                  if (state is! SettingsLoaded) return;
-                  context.read<SettingsBloc>().add(
-                    UpdateSettings(
-                      state.settings.copyWith(
-                        installedAt: DateTime.now().subtract(
-                          Duration(days: demoInstalledDaysAgo.value),
-                        ),
-                      ),
-                    ),
-                  );
-                  context.read<TrackerBloc>().add(const LoadTracker());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Install date backdated')),
-                  );
-                },
-              ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.refresh),
                 title: const Text('Wipe and refetch'),
+                subtitle: Text('Build ${BuildIdentity.value}'),
                 onTap: () =>
                     context.read<TrackerBloc>().add(const ResetTracker()),
               ),

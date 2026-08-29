@@ -39,4 +39,9 @@ abstract class TrackerRepository {
   /// when switching demo scenarios, where a normal sync would refuse to
   /// overwrite days it has already sealed.
   Future<Either<Failure, DataFreshness>> resetAndSync();
+
+  /// Drops the mirror when it was written by a different build.
+  ///
+  /// Returns true when a reset happened. Call before the first read.
+  Future<bool> resetIfBuildChanged();
 }

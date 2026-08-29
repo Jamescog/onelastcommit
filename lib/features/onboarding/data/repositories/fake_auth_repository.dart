@@ -4,11 +4,11 @@ import '../../../../core/error/failures.dart';
 import '../../domain/entities/device_code.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-/// Stands in for GitHub during Phase 1.
+/// Stands in for GitHub when the app runs on generated data.
 ///
-/// It reproduces the flow's shape — a code with a real expiry, a poll that
-/// takes a few rounds to succeed — so the screen is built against the timing
-/// it will actually face rather than an instant success.
+/// It reproduces the flow's timing rather than succeeding instantly — a code
+/// with a real expiry, and authorisation only on the third poll — so the
+/// waiting state is visible while building against it.
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository();
 
@@ -21,6 +21,7 @@ class FakeAuthRepository implements AuthRepository {
     return Right(
       DeviceCodeGrant(
         userCode: 'WDJB-MJHT',
+        deviceCode: 'fake-device-code',
         verificationUri: 'https://github.com/login/device',
         expiresAt: DateTime.now().add(const Duration(seconds: 900)),
         interval: 5,
@@ -29,12 +30,18 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, String>> pollForToken(DeviceCodeGrant grant) async {
+  Future<AuthPoll> pollForToken(DeviceCodeGrant grant) async {
     await Future<void>.delayed(const Duration(seconds: 2));
-    if (DateTime.now().isAfter(grant.expiresAt)) return Left(ServerFailure());
+    if (DateTime.now().isAfter(grant.expiresAt)) {
+      return const AuthCodeExpired();
+    }
     _polls++;
-    // Authorises on the third poll, so the waiting state is actually visible.
-    if (_polls < 3) return Left(CacheFailure());
-    return const Right('jamescog');
+    return _polls < 3 ? const AuthPending() : const AuthGranted('jamescog');
   }
+
+  @override
+  Future<bool> refreshIfNeeded() async => true;
+
+  @override
+  Future<void> signOut() async {}
 }

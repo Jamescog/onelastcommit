@@ -87,8 +87,12 @@ class _Era extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SectionHeader(
-            eyebrow: 'Tracking since ${_date(i.installedAt)}',
-            title: '${i.daysTracked} days watched',
+            eyebrow: '${i.daysTracked} days of history',
+            title: 'Your year on GitHub',
+            subtitle: i.daysWatched == 0
+                ? 'This app started watching today.'
+                : 'This app has been watching for ${i.daysWatched} '
+                      '${i.daysWatched == 1 ? "day" : "days"}.',
           ),
           const SizedBox(height: AppSpacing.lg),
           StatTileRow(
@@ -114,24 +118,6 @@ class _Era extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _date(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
 
@@ -163,9 +149,11 @@ class _Impact extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               StatTile(
-                value: '${i.saves}',
-                label: i.saves == 1 ? 'streak saved' : 'streaks saved',
-                tone: AppTone.accent,
+                value: i.remindersSent == 0 ? '—' : '${i.saves}',
+                label: i.remindersSent == 0
+                    ? 'no reminders sent yet'
+                    : (i.saves == 1 ? 'streak saved' : 'streaks saved'),
+                tone: i.remindersSent == 0 ? AppTone.neutral : AppTone.accent,
                 emphasis: StatEmphasis.hero,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -222,7 +210,8 @@ class _Rhythm extends StatelessWidget {
         SectionHeader(
           title: 'Rhythm',
           subtitle: peak == null
-              ? 'When your contributions actually land.'
+              ? 'Timing is only known for recent activity in repositories we '
+                    'can read.'
               : 'You are a ${peak.toString().padLeft(2, "0")}:00 committer.',
         ),
         const SizedBox(height: AppSpacing.md),

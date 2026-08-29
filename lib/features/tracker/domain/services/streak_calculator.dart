@@ -73,14 +73,26 @@ class StreakCalculator {
     return slice.fold(0, (sum, d) => sum + d.count);
   }
 
+  /// Aggregates for the analysis page.
+  ///
+  /// Two windows, deliberately. Rhythm, composition, breaks and trend come
+  /// from GitHub's calendar, which reaches back a year — filtering those by
+  /// the install date would blank the page on a fresh install for no reason.
+  /// Saves and response times genuinely start at install, because they come
+  /// from reminders that did not exist before it.
   static OlcInsights insightsFrom({
     required List<ContributionDay> days,
     required List<ReminderEvent> reminders,
     required List<ContributionActivity> activity,
     required DateTime installedAt,
   }) {
-    final era = days
-        .where((d) => d.date.compareTo(_label(installedAt)) >= 0)
+    // Everything GitHub knows.
+    final era = days;
+
+    // Only what happened while the app was watching.
+    final installedLabel = _label(installedAt);
+    final watched = days
+        .where((d) => d.date.compareTo(installedLabel) >= 0)
         .toList();
 
     final saved = reminders
@@ -121,6 +133,7 @@ class StreakCalculator {
     return OlcInsights(
       installedAt: installedAt,
       daysTracked: era.length,
+      daysWatched: watched.length,
       daysWithContributions: era.where((d) => d.hasContributions).length,
       saves: saved.length,
       remindersSent: reminders.length,

@@ -49,6 +49,9 @@ class TrackerRows {
     'counted': a.counted ? 1 : 0,
     'branch': a.branch,
     'is_private': a.isPrivate ? 1 : 0,
+    'sha': a.sha,
+    'additions': a.additions,
+    'deletions': a.deletions,
   };
 
   static ContributionActivity activityFromRow(Map<String, Object?> r) =>
@@ -62,6 +65,9 @@ class TrackerRows {
         counted: (r['counted'] as int?) != 0,
         branch: r['branch'] as String?,
         isPrivate: (r['is_private'] as int?) == 1,
+        sha: r['sha'] as String?,
+        additions: r['additions'] as int?,
+        deletions: r['deletions'] as int?,
       );
 
   // --- repo_activity ---

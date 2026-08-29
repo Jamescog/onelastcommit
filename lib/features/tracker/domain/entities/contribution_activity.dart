@@ -19,6 +19,9 @@ class ContributionActivity extends Equatable {
     this.counted = true,
     this.branch,
     this.isPrivate = false,
+    this.sha,
+    this.additions,
+    this.deletions,
   });
 
   final String id;
@@ -45,6 +48,16 @@ class ContributionActivity extends Equatable {
 
   final bool isPrivate;
 
+  /// Short commit hash, when this came from commit history.
+  final String? sha;
+
+  /// Lines added and removed. Available only for commits, and only in
+  /// repositories the token can read.
+  final int? additions;
+  final int? deletions;
+
+  bool get hasDiffStats => additions != null || deletions != null;
+
   @override
   List<Object?> get props => [
     id,
@@ -56,5 +69,8 @@ class ContributionActivity extends Equatable {
     counted,
     branch,
     isPrivate,
+    sha,
+    additions,
+    deletions,
   ];
 }

@@ -123,6 +123,12 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
   Future<void> _onLoad(LoadTracker event, Emitter<TrackerState> emit) async {
     if (state is! TrackerLoaded) emit(const TrackerLoading());
 
+    // A mirror written by a different build may have been parsed by different
+    // code. Drop it rather than serving rows whose correctness is unknown.
+    if (await repository.resetIfBuildChanged()) {
+      await repository.sync();
+    }
+
     final streakResult = await repository.getStreak();
 
     await streakResult.fold(
@@ -166,6 +172,10 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
       emit(const TrackerLoading());
     }
 
+    // Ahead of the fetch, not after it: doing this in _onLoad alone would
+    // sync, then discover the build had changed, wipe what it just wrote and
+    // sync a second time.
+    await repository.resetIfBuildChanged();
     await repository.sync();
     add(const LoadTracker());
   }
