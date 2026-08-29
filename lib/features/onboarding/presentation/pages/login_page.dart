@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/foreground_service.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../domain/entities/device_code.dart';
@@ -16,9 +17,10 @@ import '../bloc/auth_bloc.dart';
 ///
 /// The device flow has no callback URL, so nothing can redirect the user back
 /// here. GitHub is opened in a Custom Tab instead of a separate browser app,
-/// which keeps this app in the same task and lets [closeInAppWebView] dismiss
-/// it the moment the poll succeeds — otherwise someone finishes on github.com,
-/// sees a "you're all set" page, and has no idea they are meant to switch back.
+/// which keeps it in this app's task so [ForegroundService.reclaimForeground]
+/// can pop it the moment the poll succeeds — otherwise someone finishes on
+/// github.com, sees a "you're all set" page, and has no idea they are meant to
+/// switch back.
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -32,7 +34,7 @@ class LoginPage extends StatelessWidget {
         if (state is AuthAuthorized ||
             state is AuthFailed ||
             state is AuthExpired) {
-          closeInAppWebView();
+          ForegroundService.reclaimForeground();
         }
         if (state is! AuthAuthorized) return;
 

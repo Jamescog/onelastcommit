@@ -77,8 +77,9 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
-        <!-- Custom Tabs specifically: opening GitHub in-app is what lets the
-             page be closed again once the sign-in is approved. -->
+        <!-- Custom Tabs specifically: opening GitHub in the app's own task is
+             what lets MainActivity pop the page again (CLEAR_TOP relaunch)
+             once the sign-in is approved. -->
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
