@@ -160,6 +160,41 @@ class NotificationService {
     ),
   );
 
+  /// Registers a reminder with the OS for future delivery. [repeat] makes it
+  /// recur: daily at the same time for [DateTimeComponents.time], weekly for
+  /// [DateTimeComponents.dayOfWeekAndTime].
+  ///
+  /// Exact delivery whenever Android allows it — an inexact alarm can drift
+  /// by tens of minutes, which next to a deadline is the difference between a
+  /// save and a broken streak. The permission card in Settings is where the
+  /// user finds out which one they are getting.
+  Future<void> scheduleReminder({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime at,
+    required DateTimeComponents repeat,
+    required bool exact,
+  }) => _plugin.zonedSchedule(
+    id,
+    title,
+    body,
+    at,
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        remindersChannel,
+        'Streak reminders',
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.reminder,
+      ),
+    ),
+    androidScheduleMode: exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle,
+    matchDateTimeComponents: repeat,
+  );
+
   Future<List<PendingNotificationRequest>> pending() =>
       _plugin.pendingNotificationRequests();
 

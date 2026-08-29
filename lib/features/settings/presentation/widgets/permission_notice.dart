@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/notification_service.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../injection_container.dart';
+import '../bloc/settings_bloc.dart';
 
 /// Shows what the OS is actually allowing.
 ///
@@ -44,12 +46,24 @@ class _PermissionNoticeState extends State<PermissionNotice>
 
   Future<void> _refresh() async {
     final next = await sl<NotificationService>().permissions();
-    if (mounted) setState(() => _state = next);
+    _apply(next);
   }
 
   Future<void> _request() async {
     final next = await sl<NotificationService>().request();
-    if (mounted) setState(() => _state = next);
+    _apply(next);
+  }
+
+  void _apply(NotificationPermissions next) {
+    if (!mounted) return;
+    // Exact-vs-inexact delivery is baked into each schedule when it is
+    // written, so a permission that changed after the fact only takes effect
+    // once the reminders are registered again.
+    if (_state != null &&
+        _state!.exactAlarmsAllowed != next.exactAlarmsAllowed) {
+      context.read<SettingsBloc>().add(ReapplyReminders());
+    }
+    setState(() => _state = next);
   }
 
   @override

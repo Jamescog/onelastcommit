@@ -4,6 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/reminder_scheduler.dart';
 import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -229,7 +230,7 @@ class _ReminderTimes extends StatelessWidget {
                 ),
             ],
           ),
-          if (_afterDeadline(selected, settings.timezone)) ...[
+          if (_cutsItClose(selected, settings.timezone)) ...[
             const SizedBox(height: AppSpacing.md),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,11 +238,9 @@ class _ReminderTimes extends StatelessWidget {
                 Icon(Icons.warning_amber_outlined, size: 14, color: t.warning),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  // A reminder after the UTC deadline can never help. At
-                  // UTC+13 a 22:00 local nudge lands eleven hours too late.
                   child: Text(
-                    'Some of these fall after the day has already closed in '
-                    'UTC, so they cannot save a streak.',
+                    'Some of these fire under two hours before the day closes '
+                    'in UTC — a tight window to save a streak in.',
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: t.warning),
@@ -255,35 +254,12 @@ class _ReminderTimes extends StatelessWidget {
     );
   }
 
-  /// True when a chosen local time lands after that day's UTC midnight.
-  static bool _afterDeadline(Set<String> times, String zoneName) {
-    try {
-      final zone = tz.getLocation(zoneName);
-      final now = tz.TZDateTime.now(zone);
-      for (final time in times) {
-        final parts = time.split(':');
-        final at = tz.TZDateTime(
-          zone,
-          now.year,
-          now.month,
-          now.day,
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
-        final deadline = DateTime.utc(
-          at.toUtc().year,
-          at.toUtc().month,
-          at.toUtc().day,
-        ).add(const Duration(days: 1));
-        if (at.toUtc().isAfter(deadline)) return true;
-        // Same wall day in the zone but already the next UTC day.
-        if (at.toUtc().day != at.day) return true;
-      }
-    } catch (_) {
-      // An unresolvable zone is reported by the picker, not here.
-    }
-    return false;
-  }
+  /// True when a chosen time leaves little room before the next UTC midnight.
+  /// The definition lives with the scheduler so warning and scheduling can
+  /// never disagree about what "late" means.
+  static bool _cutsItClose(Set<String> times, String zoneName) => times.any(
+    (time) => ReminderScheduler.tooCloseToDeadline(time, zoneName),
+  );
 }
 
 class _TimezoneCard extends StatelessWidget {

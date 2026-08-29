@@ -7,6 +7,7 @@ import 'core/github/github_client.dart';
 import 'core/github/github_credentials.dart';
 import 'core/util/db_service.dart';
 import 'core/util/notification_service.dart';
+import 'core/util/reminder_scheduler.dart';
 import 'features/onboarding/data/datasources/github_auth_api.dart';
 import 'features/onboarding/data/repositories/fake_auth_repository.dart';
 import 'features/onboarding/data/repositories/github_auth_repository.dart';
@@ -49,8 +50,9 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GitHubClient(client: sl(), credentials: sl()));
   sl.registerLazySingleton(() => DatabaseService.instance);
   sl.registerLazySingleton(() => NotificationService());
+  sl.registerLazySingleton(() => ReminderScheduler(notifications: sl()));
 
-  sl.registerFactory(() => SettingsBloc(repository: sl()));
+  sl.registerFactory(() => SettingsBloc(repository: sl(), scheduler: sl()));
   sl.registerFactory(() => AuthBloc(repository: sl()));
   sl.registerFactory(() => TrackerBloc(repository: sl()));
 

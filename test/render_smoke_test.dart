@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:olc/core/error/failures.dart';
 import 'package:olc/core/theme/app_theme.dart';
 import 'package:olc/core/util/notification_service.dart';
+import 'package:olc/core/util/reminder_scheduler.dart';
 import 'package:olc/core/widgets/widgets.dart';
 import 'package:olc/features/onboarding/domain/entities/device_code.dart';
 import 'package:olc/features/onboarding/domain/repositories/auth_repository.dart';
@@ -59,7 +60,10 @@ void main() {
           ),
           BlocProvider<SettingsBloc>(
             create: (_) =>
-                SettingsBloc(repository: _StubSettings())..add(LoadSettings()),
+                SettingsBloc(
+                  repository: _StubSettings(),
+                  scheduler: _StubScheduler(),
+                )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(
@@ -90,7 +94,10 @@ void main() {
           BlocProvider<AuthBloc>.value(value: auth),
           BlocProvider<SettingsBloc>(
             create: (_) =>
-                SettingsBloc(repository: _StubSettings())..add(LoadSettings()),
+                SettingsBloc(
+                  repository: _StubSettings(),
+                  scheduler: _StubScheduler(),
+                )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(theme: AppTheme.dark, home: const LoginPage()),
@@ -187,6 +194,21 @@ class _StubTracker implements TrackerRepository {
 
   @override
   Future<bool> resetIfBuildChanged() async => false;
+}
+
+/// Loading settings re-asserts the reminder schedule, which off-device would
+/// hit the notifications method channel and throw. Scheduling is not what
+/// these tests exercise.
+class _StubScheduler extends ReminderScheduler {
+  _StubScheduler() : super(notifications: NotificationService());
+
+  @override
+  Future<void> apply({
+    required bool enabled,
+    required List<String> times,
+    required String timezone,
+    required bool includeWeekends,
+  }) async {}
 }
 
 class _StubSettings implements SettingsRepository {
