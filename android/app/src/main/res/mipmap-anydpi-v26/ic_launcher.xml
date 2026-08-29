@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8+ builds the launcher icon from two layers so every launcher can
+     mask, parallax and zoom it to its own shape. The foreground keeps the
+     emblem inside the 66dp safe zone; the plain-PNG ic_launcher files remain
+     as the pre-8.0 fallback. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
