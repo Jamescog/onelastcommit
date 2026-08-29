@@ -111,16 +111,30 @@ class NotificationService {
     );
   }
 
-  /// Asks for what is missing. Returns the state afterwards, so the caller can
-  /// tell the user what is still blocked instead of assuming success.
-  Future<NotificationPermissions> request() async {
+  /// Asks for what is missing — and only what is missing, so a user who has
+  /// already granted everything is never re-prompted. Returns the state
+  /// afterwards, so the caller can tell the user what is still blocked
+  /// instead of assuming success.
+  ///
+  /// [includeExactAlarms] exists because on Android 14 that request opens a
+  /// full system settings screen rather than a dialog — reasonable from the
+  /// settings card the user just tapped, jarring in the middle of onboarding.
+  Future<NotificationPermissions> request({
+    bool includeExactAlarms = true,
+  }) async {
     final android = _android;
     if (android != null) {
       try {
-        await android.requestNotificationsPermission();
-        // On Android 14 this cannot be granted in-app; the platform opens its
-        // own settings screen and the answer arrives when the user returns.
-        await android.requestExactAlarmsPermission();
+        final current = await permissions();
+        if (!current.notificationsAllowed) {
+          await android.requestNotificationsPermission();
+        }
+        if (includeExactAlarms && !current.exactAlarmsAllowed) {
+          // On Android 14 this cannot be granted in-app; the platform opens
+          // its own settings screen and the answer arrives when the user
+          // returns.
+          await android.requestExactAlarmsPermission();
+        }
       } catch (_) {
         // Fall through and report whatever the current state turns out to be.
       }

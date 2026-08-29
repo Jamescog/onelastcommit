@@ -6,9 +6,11 @@ import '../../../../core/dev/dev_scenario.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/notification_service.dart';
 import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../injection_container.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 
 class SetupPage extends StatefulWidget {
@@ -95,13 +97,22 @@ class _SetupPageState extends State<SetupPage> {
     }
   }
 
-  void _completeSetup() {
-    final current = context.read<SettingsBloc>().state;
+  Future<void> _completeSetup() async {
+    final settingsBloc = context.read<SettingsBloc>();
+    final current = settingsBloc.state;
     if (current is! SettingsLoaded) return;
+
+    // The one moment the OS notification prompt makes sense to the user:
+    // they chose reminder times seconds ago. Only the notification dialog is
+    // asked for here — the exact-alarm request routes through a full system
+    // settings screen, which is too jarring mid-onboarding; the permission
+    // card in Settings picks up anything still missing.
+    await sl<NotificationService>().request(includeExactAlarms: false);
+    if (!mounted) return;
 
     // installedAt is set once here, and only anchors the analysis era. It
     // never gates whether a contribution counts toward the streak.
-    context.read<SettingsBloc>().add(
+    settingsBloc.add(
       UpdateSettings(
         current.settings.copyWith(
           timezone: _selectedTimezone,
