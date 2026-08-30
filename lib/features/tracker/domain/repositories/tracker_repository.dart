@@ -46,6 +46,14 @@ abstract class TrackerRepository {
   /// tell a successful refresh from a silent fall back to cache.
   Future<Either<Failure, DataFreshness>> sync();
 
+  /// Empties the mirror and leaves it empty. Sign-out only.
+  ///
+  /// Unlike every other reset here this takes the reminder history with it.
+  /// Those rows can never be refetched, which is exactly why they cannot
+  /// stay: they belong to the account that just left, and the next one must
+  /// not inherit its saves.
+  Future<Either<Failure, void>> clearForSignOut();
+
   /// Drops the mirror and refetches from scratch. Development only — used
   /// when switching demo scenarios, where a normal sync would refuse to
   /// overwrite days it has already sealed.

@@ -64,6 +64,8 @@ void main() {
                 SettingsBloc(
                   repository: _StubSettings(),
                   scheduler: _StubScheduler(),
+                  auth: _StubAuth(),
+                  tracker: _StubTracker(source),
                 )..add(LoadSettings()),
           ),
         ],
@@ -98,6 +100,8 @@ void main() {
                 SettingsBloc(
                   repository: _StubSettings(),
                   scheduler: _StubScheduler(),
+                  auth: _StubAuth(),
+                  tracker: _StubTracker(source),
                 )..add(LoadSettings()),
           ),
         ],
@@ -194,6 +198,9 @@ class _StubTracker implements TrackerRepository {
       const Right(DataFreshness.fresh);
 
   @override
+  Future<Either<Failure, void>> clearForSignOut() async => const Right(null);
+
+  @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async =>
       const Right(DataFreshness.fresh);
 
@@ -235,6 +242,17 @@ class _StubSettings implements SettingsRepository {
 
   @override
   Future<Either<Failure, void>> markInstalled() async => const Right(null);
+
+  @override
+  Future<Either<Failure, AppSettings>> clearAccount() async => const Right(
+    AppSettings(
+      username: '',
+      timezone: 'UTC',
+      remindersEnabled: false,
+      reminderTimes: [],
+      trackWeekends: true,
+    ),
+  );
 }
 
 

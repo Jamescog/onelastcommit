@@ -12,6 +12,7 @@ import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../injection_container.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../tracker/presentation/bloc/tracker_bloc.dart';
 
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
@@ -127,6 +128,11 @@ class _SetupPageState extends State<SetupPage> {
         ),
       ),
     );
+
+    // The tracker bloc outlives every screen, so after a sign-out and a fresh
+    // sign-in it is still holding whatever the last account left in memory.
+    // Nothing else refetches between app starts.
+    context.read<TrackerBloc>().add(const SyncTracker());
 
     context.go(Routes.home);
   }

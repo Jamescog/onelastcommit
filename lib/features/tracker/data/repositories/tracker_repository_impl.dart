@@ -243,6 +243,16 @@ class TrackerRepositoryImpl implements TrackerRepository {
   }
 
   @override
+  Future<Either<Failure, void>> clearForSignOut() async {
+    try {
+      await local.clearAll();
+      return const Right(null);
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async {
     try {
       await local.clearAll();

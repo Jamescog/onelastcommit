@@ -123,6 +123,14 @@ class ReminderScheduler {
     }
   }
 
+  /// Withdraws everything, scheduled and already showing.
+  ///
+  /// [apply] only touches the ids it owns, because a transient notification
+  /// is not its business. Sign-out is the opposite case: a nag left on the
+  /// lock screen for an account the phone no longer holds a token for is
+  /// worse than useless, so this clears the lot.
+  Future<void> cancelAll() => notifications.cancelAll();
+
   Future<void> _schedule({
     required int id,
     required tz.TZDateTime at,

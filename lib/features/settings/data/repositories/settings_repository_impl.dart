@@ -45,6 +45,28 @@ class SettingsRepositoryImpl implements SettingsRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, AppSettings>> clearAccount() async {
+    try {
+      final current = await localDataSource.getSettings();
+      // Not copyWith: installedAt has to become null, and copyWith cannot
+      // express that. The analysis era ends with the account it measured.
+      final cleared = AppSettings(
+        username: '',
+        githubToken: '',
+        timezone: current.timezone,
+        remindersEnabled: false,
+        reminderTimes: current.reminderTimes,
+        trackWeekends: current.trackWeekends,
+        themeMode: current.themeMode,
+      );
+      await localDataSource.saveSettings(_toModel(cleared));
+      return Right(cleared);
+    } catch (e) {
+      return Left(CacheFailure());
+    }
+  }
+
   static AppSettingsModel _toModel(AppSettings s) => AppSettingsModel(
     username: s.username,
     githubToken: s.githubToken,

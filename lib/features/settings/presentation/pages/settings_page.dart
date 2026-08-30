@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
@@ -111,6 +112,11 @@ class _Loaded extends StatelessWidget {
                 _update(context, settings.copyWith(themeMode: s.first)),
           ),
         ),
+        const SizedBox(height: AppSpacing.xxl),
+        const SectionHeader(title: 'Account'),
+        const SizedBox(height: AppSpacing.md),
+        const _SignOut(),
+
         const DevPanel(),
         const SizedBox(height: AppSpacing.massive),
       ],
@@ -172,6 +178,115 @@ class _Account extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Sign out, and say plainly what it does and does not reach.
+///
+/// It does not revoke anything. GitHub's token-revocation endpoint
+/// authenticates with the OAuth app's client secret, and a device-flow client
+/// has none — that absence is the whole reason the device flow exists. So the
+/// token is destroyed here and stays live on github.com until the user
+/// withdraws it there, and pretending otherwise would be the same class of
+/// lie as a false all-clear.
+class _SignOut extends StatelessWidget {
+  const _SignOut();
+
+  static final _applications = Uri.parse(
+    'https://github.com/settings/applications',
+  );
+
+  Future<void> _confirm(BuildContext context) async {
+    final bloc = context.read<SettingsBloc>();
+    final t = context.tokens;
+
+    final leaving = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This phone forgets your token, cancels every reminder and '
+              'deletes what One Last Commit recorded — saves, response '
+              'times, the lot. Your contribution history is safe on GitHub; '
+              'these numbers are not, because nothing else ever had them.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Signing out cannot revoke the token itself — that only '
+              'happens on github.com.',
+              style: Theme.of(
+                dialog,
+              ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                _applications,
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label: const Text('Authorised apps on GitHub'),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            style: TextButton.styleFrom(foregroundColor: t.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+
+    // The router redirects to onboarding the moment the cleared settings are
+    // emitted, so there is nothing to navigate here.
+    if (leaving ?? false) bloc.add(SignOut());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return AppCard(
+      tone: AppTone.danger,
+      onTap: () => _confirm(context),
+      child: Row(
+        children: [
+          Icon(Icons.logout, size: 18, color: t.danger),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sign out',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: t.danger),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Removes the token and everything recorded on this device',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

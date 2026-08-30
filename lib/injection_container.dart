@@ -52,7 +52,14 @@ Future<void> init() async {
   sl.registerLazySingleton(() => NotificationService());
   sl.registerLazySingleton(() => ReminderScheduler(notifications: sl()));
 
-  sl.registerFactory(() => SettingsBloc(repository: sl(), scheduler: sl()));
+  sl.registerFactory(
+    () => SettingsBloc(
+      repository: sl(),
+      scheduler: sl(),
+      auth: sl(),
+      tracker: sl(),
+    ),
+  );
   sl.registerFactory(() => AuthBloc(repository: sl()));
   sl.registerFactory(() => TrackerBloc(repository: sl()));
 

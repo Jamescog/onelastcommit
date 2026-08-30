@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/util/reminder_scheduler.dart';
+import '../../../onboarding/domain/repositories/auth_repository.dart';
+import '../../../tracker/domain/repositories/tracker_repository.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
 
@@ -25,6 +27,9 @@ class UpdateSettings extends SettingsEvent {
 /// granted and the schedules should be upgraded from inexact delivery.
 class ReapplyReminders extends SettingsEvent {}
 
+/// Leave the account. Everything tied to it goes with it.
+class SignOut extends SettingsEvent {}
+
 abstract class SettingsState extends Equatable {
   @override
   List<Object?> get props => [];
@@ -45,8 +50,19 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SettingsRepository repository;
   final ReminderScheduler scheduler;
 
-  SettingsBloc({required this.repository, required this.scheduler})
-    : super(SettingsInitial()) {
+  /// Sign-out is the one thing settings owns that reaches outside itself: the
+  /// token, the alarms and the history all have to go together, and this is
+  /// where the state the router reads is emitted from, so this is where the
+  /// four are sequenced.
+  final AuthRepository auth;
+  final TrackerRepository tracker;
+
+  SettingsBloc({
+    required this.repository,
+    required this.scheduler,
+    required this.auth,
+    required this.tracker,
+  }) : super(SettingsInitial()) {
     on<LoadSettings>((event, emit) async {
       emit(SettingsLoading());
       final result = await repository.getSettings();
@@ -73,6 +89,21 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ReapplyReminders>((event, emit) async {
       final current = state;
       if (current is SettingsLoaded) await _reschedule(current.settings);
+    });
+
+    on<SignOut>((event, emit) async {
+      // Alarms first. Everything after this deletes the data a reminder
+      // would be about, and a nag that fires in the gap would be reasoning
+      // from a mirror that is already half gone.
+      await scheduler.cancelAll();
+      await auth.signOut();
+      await tracker.clearForSignOut();
+
+      // Emitted last, because the router watches this bloc: the moment the
+      // username is empty the redirect sends the app back to onboarding. No
+      // screen navigates by hand.
+      final cleared = await repository.clearAccount();
+      cleared.fold((_) => add(LoadSettings()), (s) => emit(SettingsLoaded(s)));
     });
   }
 
