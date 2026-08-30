@@ -26,8 +26,14 @@ class DatabaseService {
     return openDatabase(
       path,
       version: _version,
-      onCreate: (db, version) => _createV2(db),
+      onCreate: (db, version) => _createSchema(db),
       onUpgrade: _upgrade,
+      // Rolling back to an older build otherwise stamps the version down and
+      // leaves the newer tables in place; the next upgrade then re-runs an
+      // ALTER against a column that already exists, openDatabase throws, and
+      // every read fails forever. The mirror is refetchable by design, so
+      // dropping it is the cheap and correct answer.
+      onDowngrade: onDatabaseDowngradeDelete,
     );
   }
 
@@ -49,11 +55,11 @@ class DatabaseService {
       // agree about which work counts. Drop and refetch.
       await db.execute('DROP TABLE IF EXISTS commit_events');
       await db.execute('DROP TABLE IF EXISTS app_state');
-      await _createV2(db);
+      await _createSchema(db);
     }
   }
 
-  Future<void> _createV2(Database db) async {
+  Future<void> _createSchema(Database db) async {
     // One row per contribution-graph cell. `date` is GitHub's own label.
     await db.execute('''
       CREATE TABLE IF NOT EXISTS contribution_days (

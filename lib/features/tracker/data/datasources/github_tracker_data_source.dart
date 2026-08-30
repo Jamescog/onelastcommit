@@ -441,7 +441,12 @@ query($from: DateTime!, $to: DateTime!) {
 
         items.add(
           ContributionActivity(
-            id: subject['id'] as String,
+            // Namespaced by type. Opening a pull request and later reviewing
+            // it are two contributions carrying the same node id, and the id
+            // is the primary key with ConflictAlgorithm.replace behind it —
+            // so one silently overwrote the other and the composition
+            // breakdown undercounted whichever lost.
+            id: '${type.name}:${subject['id']}',
             type: type,
             repoName: repo['nameWithOwner'] as String,
             occurredAt:

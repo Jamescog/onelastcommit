@@ -218,11 +218,6 @@ class TrackerRepositoryImpl implements TrackerRepository {
       await local.saveRepos(repos);
       await local.saveReminders(reminders);
       await local.saveProfile(profile);
-
-      // Everything before today is now final.
-      if (days.isNotEmpty) {
-        await local.sealDaysBefore(days.last.date);
-      }
       await local.setLastSyncedAt(DateTime.now().toUtc());
       _lastFailureAt = null;
       return const Right(DataFreshness.fresh);

@@ -36,14 +36,9 @@ abstract class TrackerLocalDataSource {
 
   /// Marks every day before today as final. A day past its deadline will not
   /// change again, so a later write carrying stale data must not overwrite it.
-  Future<void> sealDaysBefore(String todayLabel);
-
   Future<void> enqueue(String kind, String payload);
 
-  /// Wipes the mirror, sealed rows included.
-  ///
-  /// Only for switching demo scenarios: a normal sync refuses to overwrite a
-  /// sealed day, which is what stops a stale device clobbering good data.
+  /// Wipes the mirror. Only for switching demo scenarios and sign-out.
   Future<void> clearAll();
 
   /// Drops only the rows that came from GitHub.
@@ -126,23 +121,24 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
     return rows.map(TrackerRows.dayFromRow).toList();
   }
 
+  /// Last write wins, including over days that are long past.
+  ///
+  /// PLAN.md section 4 designed sealing as a *server-side* defence: the server
+  /// decides what is still mutable, so a stale client cannot clobber a good
+  /// row. Implemented on the client, where the only writer is the
+  /// authoritative GitHub fetch, it inverted — it protected stale local rows
+  /// from GitHub. The same table calls daily counts self-healing, because the
+  /// calendar is retroactive and any date can be refetched, and sealing threw
+  /// that away: add a work email and GitHub credits forty past days, and the
+  /// app would have shown them as zeros until a new build shipped.
+  ///
+  /// The column stays for the eventual server and outbox path.
   @override
   Future<void> saveCalendar(List<ContributionDay> days) async {
     final db = await _db;
     final takenAt = DateTime.now().toUtc();
     await db.transaction((txn) async {
       for (final day in days) {
-        // A sealed day is final. Writing it again would let a device that was
-        // offline through the deadline overwrite a good row with stale data.
-        final existing = await txn.query(
-          'contribution_days',
-          columns: ['sealed'],
-          where: 'date = ?',
-          whereArgs: [day.date],
-          limit: 1,
-        );
-        if (existing.isNotEmpty && existing.first['sealed'] == 1) continue;
-
         await txn.insert(
           'contribution_days',
           TrackerRows.dayToRow(day, takenAt),
@@ -243,16 +239,6 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       _setState(_kLastReminderCheck, at.toUtc().toIso8601String());
 
   @override
-  Future<void> sealDaysBefore(String todayLabel) async {
-    final db = await _db;
-    await db.update(
-      'contribution_days',
-      {'sealed': 1},
-      where: 'date < ? AND sealed = 0',
-      whereArgs: [todayLabel],
-    );
-  }
-
   @override
   Future<void> enqueue(String kind, String payload) async {
     final db = await _db;
