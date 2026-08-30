@@ -172,7 +172,6 @@ class StreakCalculator {
           ? null
           : responses[responses.length ~/ 2],
       composition: composition,
-      countedPushes: era.fold(0, (s, d) => s + d.countedPushes),
       uncountedPushes: era.fold(0, (s, d) => s + d.uncountedPushes),
       hourHistogram: hours,
       weekdayHistogram: weekdays,

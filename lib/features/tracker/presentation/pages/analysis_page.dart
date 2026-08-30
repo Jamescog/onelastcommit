@@ -314,8 +314,10 @@ class _Composition extends StatelessWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        '${(i.uncountedShare * 100).round()}% of your pushes '
-                        'earned no square',
+                        i.uncountedPushes == 1
+                            ? 'At least 1 public push earned no square'
+                            : 'At least ${i.uncountedPushes} public pushes '
+                                  'earned no square',
                         style: Theme.of(
                           context,
                         ).textTheme.bodySmall?.copyWith(color: t.warning),

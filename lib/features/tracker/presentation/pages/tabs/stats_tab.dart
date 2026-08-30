@@ -145,16 +145,19 @@ class _Loaded extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$uncounted pushes never counted',
+                  uncounted == 1
+                      ? 'At least 1 public push never counted'
+                      : 'At least $uncounted public pushes never counted',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: context.tokens.warning,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Work on feature branches, in forks, or committed from an '
-                  'unregistered email earns no square. Check the Repos tab '
-                  'to see where.',
+                  'Pushes to a branch the repository does not count earn no '
+                  'square. This is a floor, not a total — private work never '
+                  'reaches the public feed we read this from. Check the Repos '
+                  'tab to see where.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.tokens.textSecondary,
                   ),

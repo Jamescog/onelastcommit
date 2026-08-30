@@ -117,10 +117,10 @@ void main() {
 
       expect(items.length, 2);
       expect(items.map((a) => a.id).toSet().length, 2);
-      expect(
-        items.map((a) => a.type).toSet(),
-        {ContributionType.pullRequest, ContributionType.review},
-      );
+      expect(items.map((a) => a.type).toSet(), {
+        ContributionType.pullRequest,
+        ContributionType.review,
+      });
     });
   });
 

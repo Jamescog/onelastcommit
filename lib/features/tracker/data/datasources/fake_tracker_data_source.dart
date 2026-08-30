@@ -149,7 +149,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
           lastContributionAt: count == 0
               ? null
               : date.add(Duration(hours: 19 + rand.nextInt(5))),
-          countedPushes: count,
           uncountedPushes: uncounted,
         ),
       );

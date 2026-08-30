@@ -22,7 +22,7 @@ class TrackerRows {
     'level': d.level,
     'first_contribution_at': _iso(d.firstContributionAt),
     'last_contribution_at': _iso(d.lastContributionAt),
-    'counted_pushes': d.countedPushes,
+    'counted_pushes': 0,
     'uncounted_pushes': d.uncountedPushes,
     'taken_at': _iso(takenAt),
   };
@@ -33,7 +33,6 @@ class TrackerRows {
     level: r['level']! as int,
     firstContributionAt: _date(r['first_contribution_at']),
     lastContributionAt: _date(r['last_contribution_at']),
-    countedPushes: (r['counted_pushes'] as int?) ?? 0,
     uncountedPushes: (r['uncounted_pushes'] as int?) ?? 0,
   );
 
