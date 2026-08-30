@@ -50,6 +50,10 @@ class _Loaded extends StatelessWidget {
     final total = days.fold<int>(0, (s, d) => s + d.count);
     final active = days.where((d) => d.hasContributions).length;
     final uncounted = days.fold<int>(0, (s, d) => s + d.uncountedPushes);
+    final trend = TrendChart(
+      values: [for (final d in recent) d.count],
+      label: 'Daily contributions, last 90 days',
+    );
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -101,13 +105,18 @@ class _Loaded extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxl),
 
-        const SectionHeader(
-          title: 'Daily contributions',
-          subtitle: 'Last 90 days.',
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(child: TrendChart(values: [for (final d in recent) d.count])),
-        const SizedBox(height: AppSpacing.xxl),
+        // The chart draws nothing under two points, so the card around it has
+        // to go too — a new user was getting an empty 32px box under a
+        // heading that promised a chart.
+        if (trend.hasSeries) ...[
+          const SectionHeader(
+            title: 'Daily contributions',
+            subtitle: 'Last 90 days.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(child: trend),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
 
         const SectionHeader(title: 'Consistency'),
         const SizedBox(height: AppSpacing.md),

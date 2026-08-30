@@ -154,18 +154,12 @@ class _RepoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          // A proportion bar, not a chart: it ranks at a glance and needs no
-          // axis to do it.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: LinearProgressIndicator(
-              value: share.clamp(0.0, 1.0),
-              minHeight: 4,
-              backgroundColor: t.surfaceSubtle,
-              valueColor: AlwaysStoppedAnimation(
-                highlight ? t.warning : t.success,
-              ),
-            ),
+          ProportionBar(
+            value: share,
+            label:
+                '${repo.contributionCount} contributions, share of the top '
+                'repository',
+            color: highlight ? t.warning : t.success,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(

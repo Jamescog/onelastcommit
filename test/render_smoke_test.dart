@@ -50,7 +50,12 @@ void main() {
     }
   });
 
-  Future<void> pump(WidgetTester tester, Widget child) async {
+  Future<void> pump(
+    WidgetTester tester,
+    Widget child, {
+    double textScale = 1,
+    ThemeData? theme,
+  }) async {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
@@ -69,7 +74,13 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          theme: AppTheme.dark,
+          theme: theme ?? AppTheme.dark,
+          builder: (context, widget) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: widget!,
+          ),
           home: Scaffold(body: child),
         ),
       ),
@@ -84,6 +95,32 @@ void main() {
     testWidgets('Repos', (t) => pump(t, const ReposTab()));
     testWidgets('Analysis', (t) => pump(t, const AnalysisPage()));
     testWidgets('Settings', (t) => pump(t, const SettingsPage()));
+  });
+
+  group('screens lay out in light as well as dark', () {
+    testWidgets(
+      'Today',
+      (t) => pump(t, const TodayTab(), theme: AppTheme.light),
+    );
+    testWidgets(
+      'Stats',
+      (t) => pump(t, const StatsTab(), theme: AppTheme.light),
+    );
+    testWidgets(
+      'Settings',
+      (t) => pump(t, const SettingsPage(), theme: AppTheme.light),
+    );
+  });
+
+  group('screens survive a doubled text scale', () {
+    // A hard overflow throws during layout, which is exactly what pump()
+    // asserts against. Nothing in the app reads MediaQuery.textScaler, so
+    // every fixed height and unconstrained Row is a candidate.
+    testWidgets('Today', (t) => pump(t, const TodayTab(), textScale: 2));
+    testWidgets('Stats', (t) => pump(t, const StatsTab(), textScale: 2));
+    testWidgets('Repos', (t) => pump(t, const ReposTab(), textScale: 2));
+    testWidgets('Analysis', (t) => pump(t, const AnalysisPage(), textScale: 2));
+    testWidgets('Settings', (t) => pump(t, const SettingsPage(), textScale: 2));
   });
 
   testWidgets('the device-code screen lays out', (tester) async {

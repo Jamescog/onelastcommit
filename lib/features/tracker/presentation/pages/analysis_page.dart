@@ -250,6 +250,7 @@ class _Rhythm extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               HistogramChart(
                 values: i.hourHistogram,
+                label: 'Contributions by hour of the day, local time',
                 // Every sixth tick: a label under all 24 bars is unreadable.
                 labelFor: (h) => h % 6 == 0 ? '$h' : null,
               ),
@@ -263,6 +264,7 @@ class _Rhythm extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               HistogramChart(
                 values: i.weekdayHistogram,
+                label: 'Contributions by day of the week',
                 height: 80,
                 labelFor: (d) => const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][d],
               ),
@@ -367,15 +369,7 @@ class _Bar extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: LinearProgressIndicator(
-            value: share,
-            minHeight: 4,
-            backgroundColor: t.surfaceSubtle,
-            valueColor: AlwaysStoppedAnimation(t.success),
-          ),
-        ),
+        ProportionBar(value: share, label: '$label, $value of $total'),
       ],
     );
   }
@@ -460,18 +454,22 @@ class _Trend extends StatelessWidget {
   Widget build(BuildContext context) {
     final rolling = insights.rollingWeekAverage;
     if (rolling.isEmpty) return const SizedBox.shrink();
+    final trend = TrendChart(
+      values: [for (final v in rolling) v.round()],
+      label: 'Rolling seven-day average of daily contributions',
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          title: 'Trend',
-          subtitle: 'Rolling seven-day average.',
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: TrendChart(values: [for (final v in rolling) v.round()]),
-        ),
+        if (trend.hasSeries) ...[
+          const SectionHeader(
+            title: 'Trend',
+            subtitle: 'Rolling seven-day average.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(child: trend),
+        ],
       ],
     );
   }
