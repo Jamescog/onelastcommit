@@ -131,8 +131,7 @@ class _SplashPage extends StatelessWidget {
               child: ErrorStateView(
                 title: 'Could not open your settings',
                 message: state.message,
-                onRetry: () =>
-                    context.read<SettingsBloc>().add(LoadSettings()),
+                onRetry: () => context.read<SettingsBloc>().add(LoadSettings()),
               ),
             );
           }

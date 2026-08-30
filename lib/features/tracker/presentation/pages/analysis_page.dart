@@ -175,9 +175,7 @@ class _Impact extends StatelessWidget {
                 label: i.remindersSent == 0
                     ? 'no reminders sent yet'
                     : (i.saves == 1 ? 'streak saved' : 'streaks saved'),
-                tone: i.remindersSent == 0
-                    ? AppTone.neutral
-                    : AppTone.success,
+                tone: i.remindersSent == 0 ? AppTone.neutral : AppTone.success,
                 emphasis: StatEmphasis.hero,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -439,9 +437,7 @@ class _History extends StatelessWidget {
                     ),
                     AppPill(
                       label: b.hasRecovered ? 'Recovered' : 'Open',
-                      tone: b.hasRecovered
-                          ? AppTone.success
-                          : AppTone.danger,
+                      tone: b.hasRecovered ? AppTone.success : AppTone.danger,
                     ),
                   ],
                 ),
@@ -478,7 +474,6 @@ class _Trend extends StatelessWidget {
     );
   }
 }
-
 
 class _AnalysisSkeleton extends StatelessWidget {
   const _AnalysisSkeleton();

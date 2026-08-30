@@ -60,13 +60,12 @@ void main() {
                   ..add(const LoadTracker()),
           ),
           BlocProvider<SettingsBloc>(
-            create: (_) =>
-                SettingsBloc(
-                  repository: _StubSettings(),
-                  scheduler: _StubScheduler(),
-                  auth: _StubAuth(),
-                  tracker: _StubTracker(source),
-                )..add(LoadSettings()),
+            create: (_) => SettingsBloc(
+              repository: _StubSettings(),
+              scheduler: _StubScheduler(),
+              auth: _StubAuth(),
+              tracker: _StubTracker(source),
+            )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(
@@ -90,19 +89,19 @@ void main() {
   testWidgets('the device-code screen lays out', (tester) async {
     // Never pumpAndSettle here: the screen holds a spinner and a one-second
     // countdown, so it is never quiet.
-    final auth = AuthBloc(repository: _StubAuth())..add(const StartDeviceFlow());
+    final auth = AuthBloc(repository: _StubAuth())
+      ..add(const StartDeviceFlow());
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
           BlocProvider<AuthBloc>.value(value: auth),
           BlocProvider<SettingsBloc>(
-            create: (_) =>
-                SettingsBloc(
-                  repository: _StubSettings(),
-                  scheduler: _StubScheduler(),
-                  auth: _StubAuth(),
-                  tracker: _StubTracker(source),
-                )..add(LoadSettings()),
+            create: (_) => SettingsBloc(
+              repository: _StubSettings(),
+              scheduler: _StubScheduler(),
+              auth: _StubAuth(),
+              tracker: _StubTracker(source),
+            )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(theme: AppTheme.dark, home: const LoginPage()),
@@ -255,7 +254,6 @@ class _StubSettings implements SettingsRepository {
   );
 }
 
-
 /// A device flow that hands out a code and then waits forever, which is the
 /// state the screen spends its whole life in.
 class _StubAuth implements AuthRepository {
@@ -279,7 +277,7 @@ class _StubAuth implements AuthRepository {
       Completer<AuthPoll>().future;
 
   @override
-  Future<bool> refreshIfNeeded() async => true;
+  Future<bool> refreshIfNeeded({bool force = false}) async => true;
 
   @override
   Future<void> signOut() async {}

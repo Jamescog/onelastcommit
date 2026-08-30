@@ -167,8 +167,8 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
         final sync = _lastSyncFailure;
         emit(switch ((failure, sync)) {
           // The sign-in is dead. Nothing else matters until it is replaced.
-          (_, AuthFailure()) || (AuthFailure(), _) =>
-            const TrackerUnauthorized(),
+          (_, AuthFailure()) ||
+          (AuthFailure(), _) => const TrackerUnauthorized(),
           // Nothing stored, and the attempt to fill it just failed. Saying
           // "no history yet" here would blame the user for the network.
           (EmptyMirrorFailure(), final Failure f) => TrackerFailure(f.message),

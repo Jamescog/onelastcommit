@@ -372,9 +372,8 @@ class _ReminderTimes extends StatelessWidget {
   /// True when a chosen time leaves little room before the next UTC midnight.
   /// The definition lives with the scheduler so warning and scheduling can
   /// never disagree about what "late" means.
-  static bool _cutsItClose(Set<String> times, String zoneName) => times.any(
-    (time) => ReminderScheduler.tooCloseToDeadline(time, zoneName),
-  );
+  static bool _cutsItClose(Set<String> times, String zoneName) =>
+      times.any((time) => ReminderScheduler.tooCloseToDeadline(time, zoneName));
 }
 
 class _TimezoneCard extends StatelessWidget {

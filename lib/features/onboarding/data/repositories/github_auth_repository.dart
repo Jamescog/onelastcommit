@@ -71,8 +71,8 @@ class GitHubAuthRepository implements AuthRepository {
   /// GitHub returns `expires_in: 28800`, so without this every user is signed
   /// out after eight hours.
   @override
-  Future<bool> refreshIfNeeded() async {
-    if (!await credentials.needsRefresh()) return true;
+  Future<bool> refreshIfNeeded({bool force = false}) async {
+    if (!force && !await credentials.needsRefresh()) return true;
     final refreshToken = await credentials.readRefreshToken();
     if (refreshToken == null) return false;
     try {

@@ -45,9 +45,7 @@ class NetworkFailure extends Failure {
 /// The one failure that the user cannot resolve by waiting, so it is the one
 /// that has to reach the router rather than a banner.
 class AuthFailure extends Failure {
-  const AuthFailure([
-    super.message = 'Your GitHub sign-in has expired',
-  ]);
+  const AuthFailure([super.message = 'Your GitHub sign-in has expired']);
 }
 
 /// GitHub is throttling. Distinct from [ServerFailure] because it resolves on

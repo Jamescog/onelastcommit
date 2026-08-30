@@ -305,5 +305,4 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       );
     });
   }
-
 }

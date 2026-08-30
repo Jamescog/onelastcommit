@@ -8,9 +8,7 @@ import 'package:olc/core/theme/app_tokens.dart';
 double _luminance(Color c) {
   double channel(double v) =>
       v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
-  return 0.2126 * channel(c.r) +
-      0.7152 * channel(c.g) +
-      0.0722 * channel(c.b);
+  return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
 }
 
 double _contrast(Color a, Color b) {
@@ -23,7 +21,10 @@ void main() {
   // These are the pairs the design actually depends on. They are asserted
   // rather than eyeballed because the last palette shipped a primary button
   // at 3.44:1 — white on the old green — and nothing caught it.
-  for (final entry in {'dark': AppTokens.dark, 'light': AppTokens.light}.entries) {
+  for (final entry in {
+    'dark': AppTokens.dark,
+    'light': AppTokens.light,
+  }.entries) {
     final name = entry.key;
     final t = entry.value;
 

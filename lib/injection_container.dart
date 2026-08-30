@@ -99,4 +99,11 @@ Future<void> init() async {
       notifications: sl(),
     ),
   );
+
+  // Last, because it closes a loop: the transport refreshes through the auth
+  // repository, and the auth repository resolves a login through the
+  // transport. Neither can be constructed holding the other, so the edge is
+  // wired once both exist.
+  sl<GitHubClient>().refreshHandler = ({bool force = false}) =>
+      sl<AuthRepository>().refreshIfNeeded(force: force);
 }

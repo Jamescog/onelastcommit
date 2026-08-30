@@ -162,11 +162,7 @@ void main() {
       final settled = ReminderJournal.resolve(
         open,
         days: [
-          day(
-            '2026-08-26',
-            count: 4,
-            first: DateTime.utc(2026, 8, 26, 21, 7),
-          ),
+          day('2026-08-26', count: 4, first: DateTime.utc(2026, 8, 26, 21, 7)),
         ],
         now: DateTime.utc(2026, 8, 26, 22),
       );

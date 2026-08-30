@@ -70,7 +70,12 @@ abstract class AuthRepository {
 
   /// Swaps the refresh token for a fresh access token when the current one is
   /// near expiry. False means the grant is gone and the user must re-auth.
-  Future<bool> refreshIfNeeded();
+  /// Swaps the refresh token for a fresh access token when the stored one is
+  /// spent, and returns whether a usable token is now stored.
+  ///
+  /// [force] skips the expiry check, for the case where GitHub has already
+  /// answered 401 — a revoked grant is not near expiry, it is simply gone.
+  Future<bool> refreshIfNeeded({bool force = false});
 
   Future<void> signOut();
 }

@@ -132,9 +132,10 @@ class _StatusCard extends StatelessWidget {
 
     final headline = switch (true) {
       _ when safe => 'Safe today',
-      _ when broken => streak.previousStreak == 1
-          ? 'Your streak ended'
-          : 'Your ${streak.previousStreak}-day streak ended',
+      _ when broken =>
+        streak.previousStreak == 1
+            ? 'Your streak ended'
+            : 'Your ${streak.previousStreak}-day streak ended',
       _ when brandNew => 'No streak yet',
       _ => 'Nothing counted yet',
     };

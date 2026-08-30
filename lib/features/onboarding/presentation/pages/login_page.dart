@@ -209,9 +209,7 @@ class _CodeViewState extends State<_CodeView> {
                           style: text.headlineLarge?.copyWith(
                             color: t.accent,
                             letterSpacing: 3,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures(),
-                            ],
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -306,11 +304,7 @@ class _CodeViewState extends State<_CodeView> {
 /// A numbered instruction. The number is the thing that makes the screen read
 /// as a sequence rather than a pile of controls.
 class _Step extends StatelessWidget {
-  const _Step({
-    required this.number,
-    required this.title,
-    required this.child,
-  });
+  const _Step({required this.number, required this.title, required this.child});
 
   final int number;
   final String title;

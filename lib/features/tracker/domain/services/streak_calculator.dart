@@ -224,5 +224,4 @@ class StreakCalculator {
         era.sublist(i - window, i).fold<int>(0, (s, d) => s + d.count) / window,
     ];
   }
-
 }
