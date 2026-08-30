@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/app_settings_model.dart';
+import '../../domain/entities/app_settings.dart';
 
 abstract class SettingsLocalDataSource {
-  Future<AppSettingsModel> getSettings();
-  Future<void> saveSettings(AppSettingsModel settings);
+  Future<AppSettings> getSettings();
+  Future<void> saveSettings(AppSettings settings);
 }
 
 class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
@@ -20,11 +20,10 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   /// out but a reinstall. A preference nobody can parse is a preference
   /// nobody set.
   @override
-  Future<AppSettingsModel> getSettings() async {
+  Future<AppSettings> getSettings() async {
     final rawInstalled = sharedPreferences.getString('installed_at');
-    return AppSettingsModel(
+    return AppSettings(
       username: sharedPreferences.getString('username') ?? '',
-      githubToken: sharedPreferences.getString('github_token') ?? '',
       timezone: sharedPreferences.getString('timezone') ?? 'UTC',
       remindersEnabled: sharedPreferences.getBool('reminders_enabled') ?? true,
       reminderTimes:
@@ -42,9 +41,13 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   }
 
   @override
-  Future<void> saveSettings(AppSettingsModel settings) async {
+  Future<void> saveSettings(AppSettings settings) async {
     await sharedPreferences.setString('username', settings.username);
-    await sharedPreferences.setString('github_token', settings.githubToken);
+    // Removed rather than written. Older builds stored the GitHub token here
+    // in plain text before secure storage existed, and the field outlived its
+    // last writer as an always-empty string — one refactor away from becoming
+    // a plaintext token store again.
+    await sharedPreferences.remove('github_token');
     await sharedPreferences.setString('timezone', settings.timezone);
     await sharedPreferences.setBool(
       'reminders_enabled',

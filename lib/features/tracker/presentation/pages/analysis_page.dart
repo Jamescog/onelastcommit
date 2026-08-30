@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
@@ -234,7 +235,11 @@ class _Rhythm extends StatelessWidget {
           subtitle: peak == null
               ? 'Timing is only known for recent activity in repositories we '
                     'can read.'
-              : 'You are a ${peak.toString().padLeft(2, "0")}:00 committer.',
+              // Named as local time: the histogram buckets local hours while
+              // the deadline is UTC, and an unqualified hour on a screen that
+              // talks about both is a coin flip.
+              : 'You are a ${peak.toString().padLeft(2, "0")}:00 committer, '
+                    'local time.',
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
@@ -419,7 +424,9 @@ class _History extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Broke on ${b.brokeOn}',
+                            // A date, not an ISO key. The label is GitHub's
+                            // storage format and was reaching the screen raw.
+                            'Broke on ${_day(b.brokeOn)}',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: AppSpacing.xs),
@@ -491,4 +498,13 @@ class _AnalysisSkeleton extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Formats a contribution-day label for reading.
+///
+/// [ContributionDay.date] is GitHub's storage key, carried through verbatim
+/// everywhere on purpose — but it is not what a person should be shown.
+String _day(String isoDate) {
+  final parsed = DateTime.tryParse(isoDate);
+  return parsed == null ? isoDate : DateFormat('d MMM y').format(parsed);
 }

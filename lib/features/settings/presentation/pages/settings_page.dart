@@ -325,6 +325,15 @@ class _ReminderTimes extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('When', style: Theme.of(context).textTheme.titleSmall),
+          if (!settings.remindersEnabled) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Turn "Remind me" on to change these.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,

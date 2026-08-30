@@ -277,9 +277,6 @@ class _StubSettings implements SettingsRepository {
       const Right(null);
 
   @override
-  Future<Either<Failure, void>> markInstalled() async => const Right(null);
-
-  @override
   Future<Either<Failure, AppSettings>> clearAccount() async => const Right(
     AppSettings(
       username: '',

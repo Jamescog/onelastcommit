@@ -5,7 +5,6 @@ import '../entities/app_settings.dart';
 abstract class SettingsRepository {
   Future<Either<Failure, AppSettings>> getSettings();
   Future<Either<Failure, void>> saveSettings(AppSettings settings);
-  Future<Either<Failure, void>> markInstalled();
 
   /// Forgets the account, keeping the preferences that describe the phone
   /// rather than the person. Returns what is left, so the caller can show it
