@@ -32,17 +32,45 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // Held for the app's lifetime: the router owns navigation state, and
   // rebuilding it would reset the stack on every settings change.
   late final SettingsBloc _settingsBloc = di.sl<SettingsBloc>()
     ..add(LoadSettings());
+
+  // Held for the same reason the observer below needs it: the reminder check
+  // is an app-level concern, not something a screen owns.
+  late final TrackerBloc _trackerBloc = di.sl<TrackerBloc>()
+    ..add(const SyncTracker());
+
   late final _router = buildRouter(_settingsBloc);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _trackerBloc.close();
     _settingsBloc.close();
     super.dispose();
+  }
+
+  /// The app is never running when its own reminder fires — the OS delivers
+  /// it, which is the point of scheduling in advance. Coming back to the
+  /// foreground is the first moment we can notice one went out and ask the
+  /// calendar what became of it.
+  ///
+  /// Phase 3's periodic background check calls the same repository method
+  /// this dispatches to, so the two paths cannot drift.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _trackerBloc.add(const CheckReminders());
+    }
   }
 
   /// Falls back to the device setting until settings have loaded.
@@ -55,9 +83,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         BlocProvider.value(value: _settingsBloc),
         BlocProvider(create: (_) => di.sl<AuthBloc>()),
-        BlocProvider(
-          create: (_) => di.sl<TrackerBloc>()..add(const SyncTracker()),
-        ),
+        BlocProvider.value(value: _trackerBloc),
       ],
       child: _showGallery
           ? MaterialApp(

@@ -20,6 +20,7 @@ import 'package:olc/features/settings/presentation/pages/settings_page.dart';
 import 'package:olc/features/tracker/data/datasources/fake_tracker_data_source.dart';
 import 'package:olc/features/tracker/domain/entities/entities.dart';
 import 'package:olc/features/tracker/domain/repositories/tracker_repository.dart';
+import 'package:olc/features/tracker/domain/services/reminder_journal.dart';
 import 'package:olc/features/tracker/domain/services/streak_calculator.dart';
 import 'package:olc/features/tracker/presentation/bloc/tracker_bloc.dart';
 import 'package:olc/features/tracker/presentation/pages/analysis_page.dart';
@@ -183,6 +184,10 @@ class _StubTracker implements TrackerRepository {
       installedAt: DateTime.now().subtract(const Duration(days: 90)),
     ),
   );
+
+  @override
+  Future<Either<Failure, ReminderCheck>> recordReminderOutcomes() async =>
+      const Right(ReminderCheck());
 
   @override
   Future<Either<Failure, DataFreshness>> sync() async =>

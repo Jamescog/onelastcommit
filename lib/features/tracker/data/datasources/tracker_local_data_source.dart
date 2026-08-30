@@ -24,6 +24,15 @@ abstract class TrackerLocalDataSource {
   Future<DateTime?> getLastSyncedAt();
   Future<void> setLastSyncedAt(DateTime at);
 
+  /// When the reminder check last ran.
+  ///
+  /// The high-water mark firings are reconstructed from. Null before the
+  /// first check, which is not the same as "no reminders have fired" — it
+  /// means we were not yet watching, and inventing history for that window
+  /// would be worse than losing it.
+  Future<DateTime?> getLastReminderCheckAt();
+  Future<void> setLastReminderCheckAt(DateTime at);
+
   /// Marks every day before today as final. A day past its deadline will not
   /// change again, so a later write carrying stale data must not overwrite it.
   Future<void> sealDaysBefore(String todayLabel);
@@ -56,6 +65,7 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   final DatabaseService databaseService;
 
   static const _kLastSynced = 'last_synced_at';
+  static const _kLastReminderCheck = 'last_reminder_check_at';
   static const _kProfile = 'profile';
   static const _kBuildId = 'build_id';
 
@@ -220,6 +230,16 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   @override
   Future<void> setLastSyncedAt(DateTime at) =>
       _setState(_kLastSynced, at.toUtc().toIso8601String());
+
+  @override
+  Future<DateTime?> getLastReminderCheckAt() async {
+    final raw = await _state(_kLastReminderCheck);
+    return raw == null ? null : DateTime.parse(raw);
+  }
+
+  @override
+  Future<void> setLastReminderCheckAt(DateTime at) =>
+      _setState(_kLastReminderCheck, at.toUtc().toIso8601String());
 
   @override
   Future<void> sealDaysBefore(String todayLabel) async {

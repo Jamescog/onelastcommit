@@ -21,6 +21,15 @@ class SyncTracker extends TrackerEvent {
   const SyncTracker();
 }
 
+/// Record any reminder that has fired and settle the ones still open.
+///
+/// Local only — no network, so it is cheap enough for every foreground. The
+/// mirror it reads is whatever the last sync left behind, and anything it
+/// cannot answer yet stays open for the next check.
+class CheckReminders extends TrackerEvent {
+  const CheckReminders();
+}
+
 /// Wipe the mirror and refetch. Development only.
 class ResetTracker extends TrackerEvent {
   const ResetTracker();
@@ -111,6 +120,10 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
   TrackerBloc({required this.repository}) : super(const TrackerInitial()) {
     on<LoadTracker>(_onLoad);
     on<SyncTracker>(_onSync);
+    on<CheckReminders>((event, emit) async {
+      await repository.recordReminderOutcomes();
+      add(const LoadTracker());
+    });
     on<ResetTracker>((event, emit) async {
       emit(const TrackerLoading());
       await repository.resetAndSync();
@@ -177,6 +190,9 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
     // sync a second time.
     await repository.resetIfBuildChanged();
     await repository.sync();
+    // After the refresh, never before it: last night's reminder is answered
+    // by the calendar this sync just fetched.
+    await repository.recordReminderOutcomes();
     add(const LoadTracker());
   }
 }

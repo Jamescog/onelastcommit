@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../entities/entities.dart';
+import '../services/reminder_journal.dart';
 
 /// Reads come from the local mirror, always. [sync] is a background write that
 /// refreshes that mirror; no screen waits on it.
@@ -30,6 +31,16 @@ abstract class TrackerRepository {
 
   /// Analysis-page aggregates, computed locally from the OLC-era history.
   Future<Either<Failure, OlcInsights>> getInsights();
+
+  /// Records the reminders that have fired since this last ran, and resolves
+  /// the outcome of every one still open.
+  ///
+  /// The single entry point for reminder history: app start, app foreground
+  /// and Phase 3's periodic background check all call this and nothing else.
+  /// It is local-only and idempotent, so calling it more often costs a
+  /// database read and changes nothing. Run it *after* a refresh — the
+  /// answers it can reach are only as good as the mirror it reads.
+  Future<Either<Failure, ReminderCheck>> recordReminderOutcomes();
 
   /// Refresh the mirror. Returns the freshness that resulted, so a caller can
   /// tell a successful refresh from a silent fall back to cache.

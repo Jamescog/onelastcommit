@@ -2,9 +2,11 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/util/build_identity.dart';
+import '../../../../core/util/notification_service.dart';
 import '../../../settings/data/datasources/settings_local_data_source.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
+import '../../domain/services/reminder_journal.dart';
 import '../../domain/services/streak_calculator.dart';
 import '../datasources/tracker_data_source.dart';
 import '../datasources/tracker_local_data_source.dart';
@@ -20,10 +22,17 @@ class TrackerRepositoryImpl implements TrackerRepository {
     required this.remote,
     required this.local,
     required this.settings,
+    required this.notifications,
   });
 
   final TrackerDataSource remote;
   final TrackerLocalDataSource local;
+
+  /// Consulted for one thing only: whether Android is actually showing our
+  /// reminders. A history row saying we nagged someone is a lie when the
+  /// permission was withheld, and it would go on to claim credit for saves
+  /// that no notification caused.
+  final NotificationService notifications;
 
   /// Only for `installedAt`, which anchors the OLC era on the analysis
   /// page. It never gates whether a contribution counts toward the streak —
@@ -107,6 +116,82 @@ class TrackerRepositoryImpl implements TrackerRepository {
       );
     } catch (_) {
       return Left(CacheFailure());
+    }
+  }
+
+  /// Reminder history, recorded and settled.
+  ///
+  /// Two passes over the same local data. The first reconstructs firings the
+  /// OS delivered while the app was not running — nothing reports those, so
+  /// they are derived from the schedule and the high-water mark below. The
+  /// second asks the calendar what became of every reminder still open,
+  /// including the ones just written, because a nag from last night is
+  /// usually answerable by the time the app is next opened.
+  @override
+  Future<Either<Failure, ReminderCheck>> recordReminderOutcomes() async {
+    try {
+      final now = DateTime.now().toUtc();
+      final since = await local.getLastReminderCheckAt();
+
+      // First run. We cannot claim reminders fired before we started
+      // watching for them, so this only starts the clock.
+      if (since == null) {
+        await local.setLastReminderCheckAt(now);
+        return const Right(ReminderCheck());
+      }
+
+      final saved = await settings.getSettings();
+      final days = await local.getCalendar();
+      final open = await local.getReminders();
+
+      final recorded = <ReminderEvent>[];
+      if (saved.remindersEnabled && await _notificationsAllowed()) {
+        final known = open.map((e) => e.id).toSet();
+        for (final at in ReminderJournal.firingsBetween(
+          times: saved.reminderTimes,
+          timezone: saved.timezone,
+          includeWeekends: saved.trackWeekends,
+          after: since,
+          until: now,
+        )) {
+          if (!known.add(ReminderJournal.idFor(at))) continue;
+          recorded.add(ReminderJournal.record(sentAt: at, days: days));
+        }
+      }
+
+      final syncedAt = await local.getLastSyncedAt();
+      final resolved = <ReminderEvent>[];
+      for (final event in [...open, ...recorded]) {
+        final settled = ReminderJournal.resolve(
+          event,
+          days: days,
+          now: now,
+          syncedAt: syncedAt,
+        );
+        if (settled != null) resolved.add(settled);
+      }
+
+      // Recorded first, resolved second: a firing that was answered in the
+      // same pass appears in both lists, and the write replaces on id, so
+      // the settled version has to land last.
+      await local.saveReminders([...recorded, ...resolved]);
+      await local.setLastReminderCheckAt(now);
+
+      return Right(ReminderCheck(recorded: recorded, resolved: resolved));
+    } catch (_) {
+      return Left(CacheFailure());
+    }
+  }
+
+  /// Whether the OS would have shown a reminder scheduled for this window.
+  ///
+  /// Off-device there is no plugin to ask; assuming allowed there keeps tests
+  /// and the desktop build recording rather than silently doing nothing.
+  Future<bool> _notificationsAllowed() async {
+    try {
+      return (await notifications.permissions()).notificationsAllowed;
+    } catch (_) {
+      return true;
     }
   }
 
