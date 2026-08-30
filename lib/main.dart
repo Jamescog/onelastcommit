@@ -93,15 +93,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               debugShowCheckedModeBanner: false,
               home: const ComponentGalleryPage(),
             )
-          : BlocBuilder<SettingsBloc, SettingsState>(
-              buildWhen: (a, b) => _mode(a) != _mode(b),
-              builder: (context, state) => MaterialApp.router(
-                title: 'One Last Commit',
-                theme: AppTheme.light,
-                darkTheme: AppTheme.dark,
-                themeMode: _mode(state),
-                debugShowCheckedModeBanner: false,
-                routerConfig: _router,
+          : BlocListener<TrackerBloc, TrackerState>(
+              // The one failure a user cannot wait out. A token that can no
+              // longer be refreshed leaves the app reading a mirror it can
+              // never update, and the router keys on settings rather than on
+              // credentials — so without this the app sat on stale data
+              // forever, showing a small "couldn't check" banner and offering
+              // no way back to a sign-in screen.
+              listenWhen: (a, b) => b is TrackerUnauthorized,
+              listener: (context, _) =>
+                  context.read<SettingsBloc>().add(SignOut()),
+              child: BlocBuilder<SettingsBloc, SettingsState>(
+                buildWhen: (a, b) => _mode(a) != _mode(b),
+                builder: (context, state) => MaterialApp.router(
+                  title: 'One Last Commit',
+                  theme: AppTheme.light,
+                  darkTheme: AppTheme.dark,
+                  themeMode: _mode(state),
+                  debugShowCheckedModeBanner: false,
+                  routerConfig: _router,
+                ),
               ),
             ),
     );

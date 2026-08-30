@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
 
@@ -35,7 +36,10 @@ class ResetTracker extends TrackerEvent {
   const ResetTracker();
 }
 
-abstract class TrackerState extends Equatable {
+/// Sealed so a new state cannot be added without every screen being made to
+/// say what it renders for it. The Today tab's catch-all used to draw an empty
+/// box for anything it did not recognise.
+sealed class TrackerState extends Equatable {
   const TrackerState();
 
   @override
@@ -104,6 +108,12 @@ class TrackerEmpty extends TrackerState {
   const TrackerEmpty();
 }
 
+/// The sign-in is gone and cannot be refreshed. The only failure the user
+/// cannot wait out, so it is routed rather than merely displayed.
+class TrackerUnauthorized extends TrackerState {
+  const TrackerUnauthorized();
+}
+
 /// The read itself failed. Distinct from [TrackerEmpty] on purpose: presenting
 /// a failure as an empty day would tell someone their streak is safe when it
 /// may not be, which is the one direction this app must not fail in.
@@ -133,6 +143,14 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
 
   final TrackerRepository repository;
 
+  /// What the last refresh attempt hit, if it failed.
+  ///
+  /// An empty mirror means "new install" only when nothing has just failed
+  /// trying to fill it. Without this the app greeted a user who signed in on
+  /// a plane with "No history yet — Fetch now", and every tap returned the
+  /// same screen without ever saying the word offline.
+  Failure? _lastSyncFailure;
+
   Future<void> _onLoad(LoadTracker event, Emitter<TrackerState> emit) async {
     if (state is! TrackerLoaded) emit(const TrackerLoading());
 
@@ -145,16 +163,19 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
     final streakResult = await repository.getStreak();
 
     await streakResult.fold(
-      (_) async {
-        // No streak means no calendar rows yet. On a first run that is empty,
-        // not broken — so sync once and let the retry decide which it is.
-        final calendar = await repository.getCalendar();
-        final isFirstRun = calendar.fold((_) => false, (days) => days.isEmpty);
-        emit(
-          isFirstRun
-              ? const TrackerEmpty()
-              : const TrackerFailure('Could not read your streak'),
-        );
+      (failure) async {
+        final sync = _lastSyncFailure;
+        emit(switch ((failure, sync)) {
+          // The sign-in is dead. Nothing else matters until it is replaced.
+          (_, AuthFailure()) || (AuthFailure(), _) =>
+            const TrackerUnauthorized(),
+          // Nothing stored, and the attempt to fill it just failed. Saying
+          // "no history yet" here would blame the user for the network.
+          (EmptyMirrorFailure(), final Failure f) => TrackerFailure(f.message),
+          // Nothing stored, nothing went wrong: a genuine first run.
+          (EmptyMirrorFailure(), null) => const TrackerEmpty(),
+          _ => TrackerFailure(failure.message),
+        });
       },
       (streak) async {
         final activity = await repository.getActivity(limit: 20);
@@ -189,7 +210,8 @@ class TrackerBloc extends Bloc<TrackerEvent, TrackerState> {
     // sync, then discover the build had changed, wipe what it just wrote and
     // sync a second time.
     await repository.resetIfBuildChanged();
-    await repository.sync();
+    final result = await repository.sync();
+    _lastSyncFailure = result.fold((failure) => failure, (_) => null);
     // After the refresh, never before it: last night's reminder is answered
     // by the calendar this sync just fetched.
     await repository.recordReminderOutcomes();

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/onboarding/presentation/pages/login_page.dart';
@@ -11,8 +12,10 @@ import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/tracker/presentation/pages/analysis_page.dart';
 import '../../features/tracker/presentation/pages/home_page.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/dev/component_gallery_page.dart';
 import '../widgets/dev/scenario_preview_page.dart';
+import '../widgets/widgets.dart';
 
 /// Route paths, named once so no screen hardcodes a string.
 class Routes {
@@ -45,7 +48,9 @@ GoRouter buildRouter(SettingsBloc settingsBloc) {
       if (here.startsWith('/dev')) return null;
 
       // Settings have not loaded yet — hold on the splash rather than guessing
-      // and bouncing the user between screens a frame later.
+      // and bouncing the user between screens a frame later. The splash shows
+      // a failure and a retry when the read is what went wrong, so holding is
+      // no longer the same as stranding.
       if (settings is! SettingsLoaded) {
         return here == Routes.splash ? null : Routes.splash;
       }
@@ -117,6 +122,23 @@ class _SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, state) {
+          if (state is SettingsFailure) {
+            return Padding(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: ErrorStateView(
+                title: 'Could not open your settings',
+                message: state.message,
+                onRetry: () =>
+                    context.read<SettingsBloc>().add(LoadSettings()),
+              ),
+            );
+          }
+          return const Center(child: CircularProgressIndicator());
+        },
+      ),
+    );
   }
 }

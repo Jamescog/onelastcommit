@@ -12,8 +12,16 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
 
   SettingsLocalDataSourceImpl({required this.sharedPreferences});
 
+  /// Reads what is stored, tolerating what is not.
+  ///
+  /// `byName` and `DateTime.parse` both throw on anything they do not
+  /// recognise, and this read gates the whole app — one unparseable string
+  /// left it holding on the splash screen forever, with no retry and no way
+  /// out but a reinstall. A preference nobody can parse is a preference
+  /// nobody set.
   @override
   Future<AppSettingsModel> getSettings() async {
+    final rawInstalled = sharedPreferences.getString('installed_at');
     return AppSettingsModel(
       username: sharedPreferences.getString('username') ?? '',
       githubToken: sharedPreferences.getString('github_token') ?? '',
@@ -22,12 +30,14 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       reminderTimes:
           sharedPreferences.getStringList('reminder_times') ?? ['20:00'],
       trackWeekends: sharedPreferences.getBool('weekend_mode') ?? true,
-      themeMode: ThemeMode.values.byName(
-        sharedPreferences.getString('theme_mode') ?? 'system',
-      ),
-      installedAt: sharedPreferences.getString('installed_at') != null
-          ? DateTime.parse(sharedPreferences.getString('installed_at')!)
-          : null,
+      themeMode:
+          ThemeMode.values.asNameMap()[sharedPreferences.getString(
+            'theme_mode',
+          )] ??
+          ThemeMode.system,
+      installedAt: rawInstalled == null
+          ? null
+          : DateTime.tryParse(rawInstalled),
     );
   }
 

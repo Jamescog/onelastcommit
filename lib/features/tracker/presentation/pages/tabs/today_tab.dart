@@ -31,7 +31,14 @@ class TodayTab extends StatelessWidget {
             onRetry: () => context.read<TrackerBloc>().add(const SyncTracker()),
           ),
           TrackerLoaded() => _Loaded(state: state),
-          _ => const SizedBox.shrink(),
+          // Signing back in is already under way; say so rather than
+          // rendering a blank screen for the frame it takes.
+          TrackerUnauthorized() => const EmptyStateView(
+            icon: Icons.lock_outline,
+            title: 'Your GitHub sign-in expired',
+            message: 'Taking you back to sign in.',
+            tone: AppTone.warning,
+          ),
         };
       },
     );
@@ -42,6 +49,8 @@ class _Loaded extends StatelessWidget {
   const _Loaded({required this.state});
 
   final TrackerLoaded state;
+
+  static bool _busy(TrackerState s) => s is TrackerLoaded && s.isSyncing;
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +64,13 @@ class _Loaded extends StatelessWidget {
         .toList();
 
     return RefreshIndicator(
-      onRefresh: () async =>
-          context.read<TrackerBloc>().add(const SyncTracker()),
+      // Awaited to the point the sync settles: returning as soon as the event
+      // was dispatched made the spinner vanish instantly whether or not
+      // anything had been fetched.
+      onRefresh: () async {
+        final bloc = context.read<TrackerBloc>()..add(const SyncTracker());
+        await bloc.stream.firstWhere((s) => s is! TrackerLoading && !_busy(s));
+      },
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [

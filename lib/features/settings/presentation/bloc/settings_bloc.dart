@@ -46,6 +46,19 @@ class SettingsLoaded extends SettingsState {
   List<Object?> get props => [settings];
 }
 
+/// Settings could not be read.
+///
+/// It has to be a state rather than a silent return: the router holds every
+/// route until settings load, so emitting nothing here parked the app on a
+/// bare spinner with no retry — the one screen that gates all the others was
+/// the one screen that could never recover.
+class SettingsFailure extends SettingsState {
+  SettingsFailure(this.message);
+  final String message;
+  @override
+  List<Object?> get props => [message];
+}
+
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SettingsRepository repository;
   final ReminderScheduler scheduler;
@@ -66,7 +79,10 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<LoadSettings>((event, emit) async {
       emit(SettingsLoading());
       final result = await repository.getSettings();
-      final settings = result.fold((failure) => null, (s) => s);
+      final settings = result.fold((failure) {
+        emit(SettingsFailure(failure.message));
+        return null;
+      }, (s) => s);
       if (settings == null) return;
       emit(SettingsLoaded(settings));
       // Re-asserted on every load: scheduling is idempotent, and permissions

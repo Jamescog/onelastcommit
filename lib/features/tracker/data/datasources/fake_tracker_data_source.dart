@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../../../core/dev/dev_scenario.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/github/github_exceptions.dart';
 import '../../../../core/util/utc_date.dart';
 import '../../domain/entities/entities.dart';
 import 'tracker_data_source.dart';
@@ -48,9 +49,21 @@ class FakeTrackerDataSource implements TrackerDataSource {
     'Cache is not invalidated after a manual sync',
   ];
 
+  /// Fails the way the scenario says it should.
+  ///
+  /// [Scenario.offline] used to differ from [Scenario.atRisk] only in the
+  /// numbers it generated, so every sync succeeded, freshness stayed fresh,
+  /// and the staleness banner — the thing PLAN.md section 1 calls the
+  /// difference between an app and a liability — could not be reached from
+  /// the scenario switcher at all.
   void _guard() {
-    if (_scenario == Scenario.error) {
-      throw CacheException();
+    switch (_scenario) {
+      case Scenario.error:
+        throw CacheException();
+      case Scenario.offline:
+        throw const GitHubUnreachable();
+      default:
+        return;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/github/github_exceptions.dart';
 import '../../../../core/util/build_identity.dart';
 import '../../../../core/util/notification_service.dart';
 import '../../../settings/data/datasources/settings_local_data_source.dart';
@@ -18,7 +19,7 @@ import '../datasources/tracker_local_data_source.dart';
 /// the same path, and the difference shows up as [DataFreshness] rather than
 /// as a different code branch.
 class TrackerRepositoryImpl implements TrackerRepository {
-  const TrackerRepositoryImpl({
+  TrackerRepositoryImpl({
     required this.remote,
     required this.local,
     required this.settings,
@@ -43,14 +44,22 @@ class TrackerRepositoryImpl implements TrackerRepository {
   /// the data being shown — it stops the app claiming certainty about it.
   static const staleAfter = Duration(hours: 6);
 
+  /// When the last refresh attempt failed, if it is more recent than the last
+  /// one that worked.
+  ///
+  /// Age alone is not honesty: a sync that failed forty minutes after a
+  /// successful one leaves a mirror that is technically fresh and factually
+  /// unverified, and the user who just pulled to refresh watched it fail.
+  DateTime? _lastFailureAt;
+
   @override
   Future<Either<Failure, GitHubProfile>> getProfile() async {
     try {
       final profile = await local.getProfile();
-      if (profile == null) return Left(CacheFailure());
+      if (profile == null) return const Left(CacheFailure());
       return Right(profile);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -62,7 +71,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getCalendar(from: from, to: to));
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -73,7 +82,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getActivity(limit: limit));
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -82,7 +91,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getRepos());
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -95,10 +104,10 @@ class TrackerRepositoryImpl implements TrackerRepository {
         now: DateTime.now(),
         freshness: await currentFreshness(),
       );
-      if (streak == null) return Left(CacheFailure());
+      if (streak == null) return const Left(EmptyMirrorFailure());
       return Right(streak);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -115,7 +124,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
         ),
       );
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -179,7 +188,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
 
       return Right(ReminderCheck(recorded: recorded, resolved: resolved));
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -215,14 +224,26 @@ class TrackerRepositoryImpl implements TrackerRepository {
         await local.sealDaysBefore(days.last.date);
       }
       await local.setLastSyncedAt(DateTime.now().toUtc());
+      _lastFailureAt = null;
       return const Right(DataFreshness.fresh);
-    } catch (_) {
-      // A failed refresh is not a failed read. The mirror still holds real
-      // data; it just cannot be vouched for any more.
-      final hasCache = (await _safeDayCount()) > 0;
-      return Right(hasCache ? DataFreshness.stale : DataFreshness.error);
+    } catch (e) {
+      // A failed refresh is not a failed read — the mirror still holds real
+      // data. But it is still a failure, and returning Right() for it meant
+      // every caller was structurally unable to notice. The typed exception
+      // survives to the UI now instead of being erased here.
+      _lastFailureAt = DateTime.now().toUtc();
+      return Left(_failureFor(e));
     }
   }
+
+  static Failure _failureFor(Object e) => switch (e) {
+    GitHubUnauthorized() => const AuthFailure(),
+    GitHubUnreachable() => const NetworkFailure(),
+    GitHubRateLimited() => const RateLimitFailure(),
+    GitHubForbidden(:final message) => ServerFailure(message),
+    GitHubException(:final message) => ServerFailure(message),
+    _ => const CacheFailure('Could not store what GitHub sent'),
+  };
 
   @override
   Future<bool> resetIfBuildChanged() async {
@@ -248,7 +269,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
       await local.clearAll();
       return const Right(null);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -258,17 +279,9 @@ class TrackerRepositoryImpl implements TrackerRepository {
       await local.clearAll();
       await local.setBuildId(BuildIdentity.value);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
     return sync();
-  }
-
-  Future<int> _safeDayCount() async {
-    try {
-      return (await local.getCalendar()).length;
-    } catch (_) {
-      return 0;
-    }
   }
 
   /// How much the mirror can be trusted right now, independent of any refresh.
@@ -276,6 +289,8 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       final last = await local.getLastSyncedAt();
       if (last == null) return DataFreshness.error;
+      final failed = _lastFailureAt;
+      if (failed != null && failed.isAfter(last)) return DataFreshness.stale;
       final age = DateTime.now().toUtc().difference(last);
       return age > staleAfter ? DataFreshness.stale : DataFreshness.fresh;
     } catch (_) {
