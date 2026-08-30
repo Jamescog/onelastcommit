@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/dev/dev_scenario.dart';
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/notification_service.dart';
+import '../../../../core/util/reminder_scheduler.dart';
 import '../../../../core/util/timezone_service.dart';
 import '../../../../core/widgets/dev/dev_panel.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -32,25 +31,6 @@ class _SetupPageState extends State<SetupPage> {
   String? _detected;
   final List<String> _selectedReminderTimes = ['20:00'];
   bool _trackWeekends = true;
-
-  final List<String> _availableTimes = [
-    '08:00',
-    '09:00',
-    '10:00',
-    '11:00',
-    '12:00',
-    '13:00',
-    '14:00',
-    '15:00',
-    '16:00',
-    '17:00',
-    '18:00',
-    '19:00',
-    '20:00',
-    '21:00',
-    '22:00',
-    '23:00',
-  ];
 
   @override
   void initState() {
@@ -134,7 +114,10 @@ class _SetupPageState extends State<SetupPage> {
     // Nothing else refetches between app starts.
     context.read<TrackerBloc>().add(const SyncTracker());
 
-    context.go(Routes.home);
+    // No context.go here. The redirect moves the app the moment the saved
+    // settings are emitted; navigating by hand first ran the redirect against
+    // the pre-update state, which still had installedAt null, and bounced
+    // through onboarding on the way. Screens state intent, the router decides.
   }
 
   @override
@@ -164,33 +147,38 @@ class _SetupPageState extends State<SetupPage> {
   }
 
   Widget _buildHeader() {
+    final t = context.tokens;
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (_currentPage > 0)
             IconButton(
-              icon: Icon(Icons.arrow_back, color: context.tokens.textPrimary),
+              tooltip: 'Back',
+              icon: Icon(Icons.arrow_back, color: t.textPrimary),
               onPressed: _previousPage,
             )
           else
             const SizedBox(width: 48),
-          Row(
-            children: List.generate(
-              3,
-              (index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: _currentPage == index ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _currentPage == index
-                      ? context.tokens.info
-                      : context.tokens.textSecondary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
+          Semantics(
+            label: 'Step ${_currentPage + 1} of 3',
+            child: Row(
+              children: [
+                for (var i = 0; i < 3; i++)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs / 2,
+                    ),
+                    width: _currentPage == i ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPage == i ? t.accent : t.border,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 48),
@@ -199,26 +187,54 @@ class _SetupPageState extends State<SetupPage> {
     );
   }
 
+  /// One heading treatment for all three steps.
+  ///
+  /// The icons used to be 80px and painted per-page in info, danger and
+  /// accent — an entire step rendered in the alarm colour, which is how you
+  /// train someone to ignore it. They read as chrome now, at a size that does
+  /// not compete with the control the step is actually about.
+  Widget _stepHeading(IconData icon, String title, String subtitle) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                for (final c in t.brandGradient) c.withValues(alpha: 0.24),
+              ],
+            ),
+          ),
+          child: Icon(icon, size: 26, color: t.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text(title, style: text.headlineMedium),
+        const SizedBox(height: AppSpacing.sm),
+        Text(subtitle, style: text.bodyLarge?.copyWith(color: t.textSecondary)),
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+
   Widget _buildTimezonePage() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.public, size: 80, color: context.tokens.info),
-          const SizedBox(height: 32),
-          Text(
-            'Select Your Timezone',
-            style: Theme.of(context).textTheme.headlineMedium,
+          _stepHeading(
+            Icons.public,
+            'Time zone',
+            'Reminders fire on your clock. The streak still closes at '
+                'midnight UTC.',
           ),
-          const SizedBox(height: 16),
-          Text(
-            'We\'ll use this to send you reminders at the right time',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: context.tokens.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 32),
           AppCard(
             onTap: () async {
               final picked = await TimezonePicker.show(
@@ -279,146 +295,143 @@ class _SetupPageState extends State<SetupPage> {
 
   Widget _buildReminderTimesPage() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.access_time, size: 80, color: context.tokens.danger),
-          const SizedBox(height: 32),
-          Text(
-            'Set Reminder Times',
-            style: Theme.of(context).textTheme.headlineMedium,
+          _stepHeading(
+            Icons.access_time,
+            'Remind me',
+            'Pick one or more. You can change these any time in settings.',
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Choose when you want to be reminded to commit. Select one or more times.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: context.tokens.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 32),
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _availableTimes.map((time) {
-              final isSelected = _selectedReminderTimes.contains(time);
-              return FilterChip(
-                label: Text(time),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedReminderTimes.add(time);
-                      _selectedReminderTimes.sort();
-                    } else {
-                      if (_selectedReminderTimes.length > 1) {
-                        _selectedReminderTimes.remove(time);
-                      }
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              // The same list settings offers. They used to differ, and a
+              // time chosen here that settings did not list became invisible
+              // and unremovable there.
+              for (final time in ReminderScheduler.offeredTimes)
+                FilterChip(
+                  label: Text(time),
+                  selected: _selectedReminderTimes.contains(time),
+                  onSelected: (on) => setState(() {
+                    if (on) {
+                      _selectedReminderTimes
+                        ..add(time)
+                        ..sort();
+                    } else if (_selectedReminderTimes.length > 1) {
+                      _selectedReminderTimes.remove(time);
                     }
-                  });
-                },
-                selectedColor: context.tokens.danger.withValues(alpha: 0.3),
-                checkmarkColor: context.tokens.danger,
-                backgroundColor: context.tokens.surface,
-                side: BorderSide(
-                  color: isSelected
-                      ? context.tokens.danger
-                      : context.tokens.border,
+                  }),
                 ),
-              );
-            }).toList(),
+            ],
           ),
-          const SizedBox(height: 24),
-          if (_selectedReminderTimes.isNotEmpty)
-            Card(
-              color: context.tokens.danger.withValues(alpha: 0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: context.tokens.danger),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'You\'ll receive ${_selectedReminderTimes.length} reminder${_selectedReminderTimes.length > 1 ? 's' : ''} daily',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreferencesPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.tune, size: 80, color: context.tokens.accent),
-          const SizedBox(height: 32),
-          Text(
-            'Final Touches',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Customize your tracking preferences',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: context.tokens.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 32),
-          Card(
-            child: Column(
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            tone: AppTone.info,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SwitchListTile(
-                  secondary: Icon(Icons.weekend, color: context.tokens.accent),
-                  title: const Text('Track Weekends'),
-                  subtitle: const Text('Get reminders on Saturday and Sunday'),
-                  value: _trackWeekends,
-                  onChanged: (val) => setState(() => _trackWeekends = val),
+                Icon(Icons.info_outline, size: 18, color: context.tokens.info),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    _selectedReminderTimes.length == 1
+                        ? 'One reminder a day, at '
+                              '${_selectedReminderTimes.single}.'
+                        : '${_selectedReminderTimes.length} reminders a day, '
+                              'at ${_selectedReminderTimes.join(", ")}.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Card(
-            color: context.tokens.info.withValues(alpha: 0.1),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle, color: context.tokens.info),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Setup Summary',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
+          // The warning settings has always shown, on the screen where the
+          // choice is actually made. Pick 23:00 at UTC+0 here and the nudge
+          // arrives with an hour left; nothing used to say so until the night
+          // it mattered.
+          if (_cutsItClose) ...[
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.warning_amber_outlined,
+                  size: 14,
+                  color: context.tokens.warning,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Some of these fire under two hours before the day '
+                    'closes in UTC — a tight window to save a streak in.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.tokens.warning,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildSummaryItem(
-                    'Timezone',
-                    _selectedTimezone.replaceAll('_', ' '),
-                  ),
-                  _buildSummaryItem(
-                    'Reminders',
-                    '${_selectedReminderTimes.length} time(s): ${_selectedReminderTimes.join(', ')}',
-                  ),
-                  _buildSummaryItem(
-                    'Weekends',
-                    _trackWeekends ? 'Enabled' : 'Disabled',
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Shared with the settings screen through the scheduler, so the warning
+  /// and the scheduling can never disagree about what "late" means.
+  bool get _cutsItClose => _selectedReminderTimes.any(
+    (time) => ReminderScheduler.tooCloseToDeadline(time, _selectedTimezone),
+  );
+
+  Widget _buildPreferencesPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _stepHeading(
+            Icons.tune,
+            'Last thing',
+            'Both of these are changeable later.',
+          ),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: SwitchListTile(
+              secondary: Icon(
+                Icons.weekend_outlined,
+                color: context.tokens.textSecondary,
               ),
+              title: const Text('Remind me at weekends'),
+              // Naming it plainly avoids the reading that weekend
+              // contributions somehow do not count. They do.
+              subtitle: const Text(
+                'Weekend contributions always count either way',
+              ),
+              value: _trackWeekends,
+              onChanged: (val) => setState(() => _trackWeekends = val),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'What you picked'),
+                const SizedBox(height: AppSpacing.md),
+                _summaryRow(
+                  'Time zone',
+                  _selectedTimezone.replaceAll('_', ' '),
+                ),
+                _summaryRow('Reminders', _selectedReminderTimes.join(', ')),
+                _summaryRow(
+                  'Weekends',
+                  _trackWeekends ? 'Reminders on' : 'Quiet',
+                ),
+              ],
             ),
           ),
         ],
@@ -426,14 +439,16 @@ class _SetupPageState extends State<SetupPage> {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value) {
+  Widget _summaryRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
+          // Flexible rather than a fixed 100px: the label column used to clip
+          // its own text as soon as the user scaled type up.
+          Flexible(
+            flex: 2,
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -441,7 +456,9 @@ class _SetupPageState extends State<SetupPage> {
               ),
             ),
           ),
-          Expanded(
+          const SizedBox(width: AppSpacing.md),
+          Flexible(
+            flex: 3,
             child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
@@ -451,15 +468,15 @@ class _SetupPageState extends State<SetupPage> {
 
   Widget _buildNavigation() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: context.tokens.border, width: 1)),
+        border: Border(top: BorderSide(color: context.tokens.border)),
       ),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
           onPressed: _nextPage,
-          child: Text(_currentPage == 2 ? 'Complete Setup' : 'Continue'),
+          child: Text(_currentPage == 2 ? 'Complete setup' : 'Continue'),
         ),
       ),
     );
