@@ -93,7 +93,10 @@ class _Intro extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.commit, size: 48, color: t.accent),
+          // The same mark the onboarding slides and the setup steps carry, so
+          // the three pre-app screens read as one sequence. Centred, because
+          // the column stretches and a disc has a diameter.
+          const Center(child: BrandMark(icon: Icons.commit, size: 96)),
           const SizedBox(height: AppSpacing.xl),
           Text(
             'Connect GitHub',

@@ -24,6 +24,10 @@ class _Palette {
   static const logoPlum = Color(0xFF8C4C6C);
   static const logoBlue = Color(0xFF0E52A7);
 
+  /// What the logo's mark is cut out of. White in both themes, because the
+  /// gradient it sits on is the same in both themes.
+  static const onBrand = Color(0xFFFFFFFF);
+
   // Dark
   static const darkGround = logoNavy;
   static const darkSurface = Color(0xFF23252F);
@@ -98,6 +102,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.dangerSubtle,
     required this.heatmap,
     required this.brandGradient,
+    required this.onBrand,
   });
 
   /// Scaffold background.
@@ -154,6 +159,11 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// never be mistaken for a status.
   final List<Color> brandGradient;
 
+  /// The mark drawn on [brandGradient] — the counterpart to [onAccent], and
+  /// identical in both themes for the same reason the gradient is. Every
+  /// stop of the gradient is dark enough to reverse a glyph out of.
+  final Color onBrand;
+
   static const _brand = [
     _Palette.logoOrange,
     _Palette.logoPlum,
@@ -190,6 +200,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       Color(0xFF57B575),
     ],
     brandGradient: _brand,
+    onBrand: _Palette.onBrand,
   );
 
   static const light = AppTokens(
@@ -219,6 +230,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       Color(0xFF2F7D48),
     ],
     brandGradient: _brand,
+    onBrand: _Palette.onBrand,
   );
 
   @override
@@ -243,6 +255,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? dangerSubtle,
     List<Color>? heatmap,
     List<Color>? brandGradient,
+    Color? onBrand,
   }) {
     return AppTokens(
       ground: ground ?? this.ground,
@@ -265,6 +278,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       dangerSubtle: dangerSubtle ?? this.dangerSubtle,
       heatmap: heatmap ?? this.heatmap,
       brandGradient: brandGradient ?? this.brandGradient,
+      onBrand: onBrand ?? this.onBrand,
     );
   }
 
@@ -298,6 +312,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
         for (var i = 0; i < brandGradient.length; i++)
           Color.lerp(brandGradient[i], other.brandGradient[i], t)!,
       ],
+      onBrand: Color.lerp(onBrand, other.onBrand, t)!,
     );
   }
 }

@@ -199,21 +199,7 @@ class _SetupPageState extends State<SetupPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                for (final c in t.brandGradient) c.withValues(alpha: 0.24),
-              ],
-            ),
-          ),
-          child: Icon(icon, size: 26, color: t.textPrimary),
-        ),
+        BrandMark(icon: icon, size: 56, variant: _currentPage),
         const SizedBox(height: AppSpacing.xl),
         Text(title, style: text.headlineMedium),
         const SizedBox(height: AppSpacing.sm),

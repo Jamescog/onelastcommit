@@ -111,10 +111,31 @@ void main() {
     });
   }
 
+  test('the mark stays legible everywhere the glyph is drawn', () {
+    // BrandMark reverses its glyph out of the gradient at 42% of the disc,
+    // which confines it to the middle of the sweep. The orange corner alone
+    // measures 2.89:1 against white — no glyph pixel reaches it, and this is
+    // what keeps that true if the size ratio or a stop ever moves.
+    final stops = AppTokens.dark.brandGradient;
+    Color sample(double at) => at <= 0.5
+        ? Color.lerp(stops[0], stops[1], at / 0.5)!
+        : Color.lerp(stops[1], stops[2], (at - 0.5) / 0.5)!;
+
+    for (var i = 0; i <= 20; i++) {
+      final at = 0.29 + (0.42 * i / 20);
+      expect(
+        _contrast(AppTokens.dark.onBrand, sample(at)),
+        greaterThanOrEqualTo(3),
+        reason: 'the mark at ${(at * 100).round()}% along the gradient',
+      );
+    }
+  });
+
   test('the brand gradient is the logo, identically in both themes', () {
     // It is chrome, not state. Inverting it per theme would make it a
     // different mark in light mode.
     expect(AppTokens.dark.brandGradient, AppTokens.light.brandGradient);
     expect(AppTokens.dark.brandGradient.length, 3);
+    expect(AppTokens.dark.onBrand, AppTokens.light.onBrand);
   });
 }

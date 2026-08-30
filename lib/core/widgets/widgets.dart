@@ -5,6 +5,7 @@ library;
 export 'app_card.dart';
 export 'app_pill.dart';
 export 'app_tone.dart';
+export 'brand_mark.dart';
 export 'loading_skeleton.dart';
 export 'proportion_bar.dart';
 export 'section_header.dart';

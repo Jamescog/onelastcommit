@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/widgets.dart';
 
 /// Three screens, then the sign-in.
 ///
@@ -157,19 +158,10 @@ class _SlideView extends StatelessWidget {
   final _Slide slide;
   final int index;
 
-  /// The gradient rotates a third of a turn per slide, so the three read as
-  /// one mark seen from three angles rather than three different colours.
-  static const _alignments = [
-    (Alignment.topLeft, Alignment.bottomRight),
-    (Alignment.topRight, Alignment.bottomLeft),
-    (Alignment.topCenter, Alignment.bottomCenter),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final (begin, end) = _alignments[index % _alignments.length];
 
     // Scrollable, because the previous version was a fixed Column inside a
     // PageView and overflowed on a small phone at 1.5x text.
@@ -180,21 +172,7 @@ class _SlideView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            width: 168,
-            height: 168,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: begin,
-                end: end,
-                colors: [
-                  for (final c in t.brandGradient) c.withValues(alpha: 0.24),
-                ],
-              ),
-            ),
-            child: Icon(slide.icon, size: 68, color: t.textPrimary),
-          ),
+          BrandMark(icon: slide.icon, size: 168, variant: index),
           const SizedBox(height: AppSpacing.xxl),
           Text(
             slide.title,
