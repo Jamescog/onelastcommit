@@ -24,7 +24,7 @@ class ReposTab extends StatelessWidget {
                   'to one.',
             );
           }
-          return _Loaded(repos: state.repos);
+          return _Loaded(state: state);
         }
         if (state is TrackerFailure) {
           return ErrorStateView(
@@ -56,12 +56,14 @@ class ReposTab extends StatelessWidget {
 }
 
 class _Loaded extends StatelessWidget {
-  const _Loaded({required this.repos});
+  const _Loaded({required this.state});
 
-  final List<RepoContribution> repos;
+  final TrackerLoaded state;
 
   @override
   Widget build(BuildContext context) {
+    final repos = state.repos;
+    final streak = state.streak;
     final problem = repos.where((r) => r.hasUncountedWork).toList();
     final top = repos.isEmpty
         ? 1
@@ -70,6 +72,13 @@ class _Loaded extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (streak.isUncertain) ...[
+          StalenessBanner(
+            isError: streak.freshness == DataFreshness.error,
+            checkedAt: streak.checkedAt,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         // Repos silently eating contributions come first — this is the answer
         // to "why did my streak break", so it should not be scrolled to.
         if (problem.isNotEmpty) ...[
@@ -145,18 +154,12 @@ class _RepoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          // A proportion bar, not a chart: it ranks at a glance and needs no
-          // axis to do it.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: LinearProgressIndicator(
-              value: share.clamp(0.0, 1.0),
-              minHeight: 4,
-              backgroundColor: t.surfaceSubtle,
-              valueColor: AlwaysStoppedAnimation(
-                highlight ? t.warning : t.accent,
-              ),
-            ),
+          ProportionBar(
+            value: share,
+            label:
+                '${repo.contributionCount} contributions, share of the top '
+                'repository',
+            color: highlight ? t.warning : t.success,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_tokens.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../domain/entities/entities.dart';
 import '../../bloc/tracker_bloc.dart';
 import '../../widgets/contribution_heatmap.dart';
 import '../../widgets/trend_chart.dart';
@@ -49,10 +50,21 @@ class _Loaded extends StatelessWidget {
     final total = days.fold<int>(0, (s, d) => s + d.count);
     final active = days.where((d) => d.hasContributions).length;
     final uncounted = days.fold<int>(0, (s, d) => s + d.uncountedPushes);
+    final trend = TrendChart(
+      values: [for (final d in recent) d.count],
+      label: 'Daily contributions, last 90 days',
+    );
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (streak.isUncertain) ...[
+          StalenessBanner(
+            isError: streak.freshness == DataFreshness.error,
+            checkedAt: streak.checkedAt,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         // A headline number is not a chart. Three of them beat a bar chart of
         // three bars.
         AppCard(
@@ -61,7 +73,7 @@ class _Loaded extends StatelessWidget {
               StatTile(
                 value: '${streak.current}',
                 label: 'Current streak',
-                tone: streak.current > 0 ? AppTone.accent : AppTone.danger,
+                tone: streak.current > 0 ? AppTone.success : AppTone.danger,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
@@ -85,17 +97,26 @@ class _Loaded extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
-          child: ContributionHeatmap(days: days, atRiskToday: streak.atRisk),
+          child: ContributionHeatmap(
+            days: days,
+            todayDate: streak.todayDate,
+            atRiskToday: streak.atRisk,
+          ),
         ),
         const SizedBox(height: AppSpacing.xxl),
 
-        const SectionHeader(
-          title: 'Daily contributions',
-          subtitle: 'Last 90 days.',
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(child: TrendChart(values: [for (final d in recent) d.count])),
-        const SizedBox(height: AppSpacing.xxl),
+        // The chart draws nothing under two points, so the card around it has
+        // to go too — a new user was getting an empty 32px box under a
+        // heading that promised a chart.
+        if (trend.hasSeries) ...[
+          const SectionHeader(
+            title: 'Daily contributions',
+            subtitle: 'Last 90 days.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(child: trend),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
 
         const SectionHeader(title: 'Consistency'),
         const SizedBox(height: AppSpacing.md),
@@ -133,16 +154,19 @@ class _Loaded extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$uncounted pushes never counted',
+                  uncounted == 1
+                      ? 'At least 1 public push never counted'
+                      : 'At least $uncounted public pushes never counted',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: context.tokens.warning,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Work on feature branches, in forks, or committed from an '
-                  'unregistered email earns no square. Check the Repos tab '
-                  'to see where.',
+                  'Pushes to a branch the repository does not count earn no '
+                  'square. This is a floor, not a total — private work never '
+                  'reaches the public feed we read this from. Check the Repos '
+                  'tab to see where.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.tokens.textSecondary,
                   ),

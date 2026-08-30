@@ -36,7 +36,8 @@ class BuildIdentity {
     if (_explicit.isNotEmpty) return;
     try {
       final info = await PackageInfo.fromPlatform();
-      final stamp = (info.updateTime ?? info.installTime)?.millisecondsSinceEpoch;
+      final stamp =
+          (info.updateTime ?? info.installTime)?.millisecondsSinceEpoch;
       _value =
           '${info.version}+${info.buildNumber}${stamp == null ? '' : '@$stamp'}';
     } catch (_) {

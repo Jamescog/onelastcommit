@@ -51,4 +51,18 @@ void main() {
     expect(ReminderScheduler.runwayOf('later', 'UTC'), null);
     expect(ReminderScheduler.tooCloseToDeadline('later', 'UTC'), false);
   });
+
+  group('offered times', () {
+    test('the app publishes one list, not two', () {
+      // Setup offered sixteen times and settings eleven. A 09:00 chosen at
+      // setup had no chip in settings: invisible, unremovable, still firing.
+      expect(ReminderScheduler.offeredTimes, isNotEmpty);
+      expect(
+        ReminderScheduler.offeredTimes.toSet().length,
+        ReminderScheduler.offeredTimes.length,
+      );
+      final sorted = [...ReminderScheduler.offeredTimes]..sort();
+      expect(ReminderScheduler.offeredTimes, sorted);
+    });
+  });
 }

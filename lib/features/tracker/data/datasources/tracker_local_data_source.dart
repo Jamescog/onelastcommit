@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/util/db_service.dart';
+import '../../../../core/util/utc_date.dart';
 import '../../domain/entities/entities.dart';
 import 'tracker_rows.dart';
 
@@ -24,16 +25,20 @@ abstract class TrackerLocalDataSource {
   Future<DateTime?> getLastSyncedAt();
   Future<void> setLastSyncedAt(DateTime at);
 
+  /// When the reminder check last ran.
+  ///
+  /// The high-water mark firings are reconstructed from. Null before the
+  /// first check, which is not the same as "no reminders have fired" — it
+  /// means we were not yet watching, and inventing history for that window
+  /// would be worse than losing it.
+  Future<DateTime?> getLastReminderCheckAt();
+  Future<void> setLastReminderCheckAt(DateTime at);
+
   /// Marks every day before today as final. A day past its deadline will not
   /// change again, so a later write carrying stale data must not overwrite it.
-  Future<void> sealDaysBefore(String todayLabel);
-
   Future<void> enqueue(String kind, String payload);
 
-  /// Wipes the mirror, sealed rows included.
-  ///
-  /// Only for switching demo scenarios: a normal sync refuses to overwrite a
-  /// sealed day, which is what stops a stale device clobbering good data.
+  /// Wipes the mirror. Only for switching demo scenarios and sign-out.
   Future<void> clearAll();
 
   /// Drops only the rows that came from GitHub.
@@ -56,6 +61,7 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   final DatabaseService databaseService;
 
   static const _kLastSynced = 'last_synced_at';
+  static const _kLastReminderCheck = 'last_reminder_check_at';
   static const _kProfile = 'profile';
   static const _kBuildId = 'build_id';
 
@@ -100,11 +106,11 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
     final args = <Object?>[];
     if (from != null) {
       where.add('date >= ?');
-      args.add(_label(from));
+      args.add(utcDateLabel(from));
     }
     if (to != null) {
       where.add('date <= ?');
-      args.add(_label(to));
+      args.add(utcDateLabel(to));
     }
     final rows = await db.query(
       'contribution_days',
@@ -115,23 +121,24 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
     return rows.map(TrackerRows.dayFromRow).toList();
   }
 
+  /// Last write wins, including over days that are long past.
+  ///
+  /// PLAN.md section 4 designed sealing as a *server-side* defence: the server
+  /// decides what is still mutable, so a stale client cannot clobber a good
+  /// row. Implemented on the client, where the only writer is the
+  /// authoritative GitHub fetch, it inverted — it protected stale local rows
+  /// from GitHub. The same table calls daily counts self-healing, because the
+  /// calendar is retroactive and any date can be refetched, and sealing threw
+  /// that away: add a work email and GitHub credits forty past days, and the
+  /// app would have shown them as zeros until a new build shipped.
+  ///
+  /// The column stays for the eventual server and outbox path.
   @override
   Future<void> saveCalendar(List<ContributionDay> days) async {
     final db = await _db;
     final takenAt = DateTime.now().toUtc();
     await db.transaction((txn) async {
       for (final day in days) {
-        // A sealed day is final. Writing it again would let a device that was
-        // offline through the deadline overwrite a good row with stale data.
-        final existing = await txn.query(
-          'contribution_days',
-          columns: ['sealed'],
-          where: 'date = ?',
-          whereArgs: [day.date],
-          limit: 1,
-        );
-        if (existing.isNotEmpty && existing.first['sealed'] == 1) continue;
-
         await txn.insert(
           'contribution_days',
           TrackerRows.dayToRow(day, takenAt),
@@ -222,16 +229,16 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
       _setState(_kLastSynced, at.toUtc().toIso8601String());
 
   @override
-  Future<void> sealDaysBefore(String todayLabel) async {
-    final db = await _db;
-    await db.update(
-      'contribution_days',
-      {'sealed': 1},
-      where: 'date < ? AND sealed = 0',
-      whereArgs: [todayLabel],
-    );
+  Future<DateTime?> getLastReminderCheckAt() async {
+    final raw = await _state(_kLastReminderCheck);
+    return raw == null ? null : DateTime.parse(raw);
   }
 
+  @override
+  Future<void> setLastReminderCheckAt(DateTime at) =>
+      _setState(_kLastReminderCheck, at.toUtc().toIso8601String());
+
+  @override
   @override
   Future<void> enqueue(String kind, String payload) async {
     final db = await _db;
@@ -283,12 +290,5 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
         whereArgs: const [_kLastSynced, _kProfile],
       );
     });
-  }
-
-  static String _label(DateTime d) {
-    final u = d.toUtc();
-    return '${u.year.toString().padLeft(4, '0')}-'
-        '${u.month.toString().padLeft(2, '0')}-'
-        '${u.day.toString().padLeft(2, '0')}';
   }
 }

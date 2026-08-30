@@ -93,7 +93,10 @@ class _Intro extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.commit, size: 48, color: t.accent),
+          // The same mark the onboarding slides and the setup steps carry, so
+          // the three pre-app screens read as one sequence. Centred, because
+          // the column stretches and a disc has a diameter.
+          const Center(child: BrandMark(icon: Icons.commit, size: 96)),
           const SizedBox(height: AppSpacing.xl),
           Text(
             'Connect GitHub',
@@ -209,9 +212,7 @@ class _CodeViewState extends State<_CodeView> {
                           style: text.headlineLarge?.copyWith(
                             color: t.accent,
                             letterSpacing: 3,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures(),
-                            ],
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -306,11 +307,7 @@ class _CodeViewState extends State<_CodeView> {
 /// A numbered instruction. The number is the thing that makes the screen read
 /// as a sequence rather than a pile of controls.
 class _Step extends StatelessWidget {
-  const _Step({
-    required this.number,
-    required this.title,
-    required this.child,
-  });
+  const _Step({required this.number, required this.title, required this.child});
 
   final int number;
   final String title;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../features/settings/domain/entities/app_settings.dart';
 import '../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../features/tracker/presentation/bloc/tracker_bloc.dart';
 import '../../../injection_container.dart' show useFakeData;
@@ -126,14 +125,7 @@ class DevPanel extends StatelessWidget {
                   final s = state.settings;
                   context.read<SettingsBloc>().add(
                     UpdateSettings(
-                      AppSettings(
-                        username: '',
-                        timezone: s.timezone,
-                        remindersEnabled: s.remindersEnabled,
-                        reminderTimes: s.reminderTimes,
-                        trackWeekends: s.trackWeekends,
-                        themeMode: s.themeMode,
-                      ),
+                      s.copyWith(username: '', clearInstalledAt: true),
                     ),
                   );
                 },

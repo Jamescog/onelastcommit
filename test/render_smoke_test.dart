@@ -20,6 +20,7 @@ import 'package:olc/features/settings/presentation/pages/settings_page.dart';
 import 'package:olc/features/tracker/data/datasources/fake_tracker_data_source.dart';
 import 'package:olc/features/tracker/domain/entities/entities.dart';
 import 'package:olc/features/tracker/domain/repositories/tracker_repository.dart';
+import 'package:olc/features/tracker/domain/services/reminder_journal.dart';
 import 'package:olc/features/tracker/domain/services/streak_calculator.dart';
 import 'package:olc/features/tracker/presentation/bloc/tracker_bloc.dart';
 import 'package:olc/features/tracker/presentation/pages/analysis_page.dart';
@@ -49,7 +50,12 @@ void main() {
     }
   });
 
-  Future<void> pump(WidgetTester tester, Widget child) async {
+  Future<void> pump(
+    WidgetTester tester,
+    Widget child, {
+    double textScale = 1,
+    ThemeData? theme,
+  }) async {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
@@ -59,15 +65,22 @@ void main() {
                   ..add(const LoadTracker()),
           ),
           BlocProvider<SettingsBloc>(
-            create: (_) =>
-                SettingsBloc(
-                  repository: _StubSettings(),
-                  scheduler: _StubScheduler(),
-                )..add(LoadSettings()),
+            create: (_) => SettingsBloc(
+              repository: _StubSettings(),
+              scheduler: _StubScheduler(),
+              auth: _StubAuth(),
+              tracker: _StubTracker(source),
+            )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(
-          theme: AppTheme.dark,
+          theme: theme ?? AppTheme.dark,
+          builder: (context, widget) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: widget!,
+          ),
           home: Scaffold(body: child),
         ),
       ),
@@ -84,20 +97,48 @@ void main() {
     testWidgets('Settings', (t) => pump(t, const SettingsPage()));
   });
 
+  group('screens lay out in light as well as dark', () {
+    testWidgets(
+      'Today',
+      (t) => pump(t, const TodayTab(), theme: AppTheme.light),
+    );
+    testWidgets(
+      'Stats',
+      (t) => pump(t, const StatsTab(), theme: AppTheme.light),
+    );
+    testWidgets(
+      'Settings',
+      (t) => pump(t, const SettingsPage(), theme: AppTheme.light),
+    );
+  });
+
+  group('screens survive a doubled text scale', () {
+    // A hard overflow throws during layout, which is exactly what pump()
+    // asserts against. Nothing in the app reads MediaQuery.textScaler, so
+    // every fixed height and unconstrained Row is a candidate.
+    testWidgets('Today', (t) => pump(t, const TodayTab(), textScale: 2));
+    testWidgets('Stats', (t) => pump(t, const StatsTab(), textScale: 2));
+    testWidgets('Repos', (t) => pump(t, const ReposTab(), textScale: 2));
+    testWidgets('Analysis', (t) => pump(t, const AnalysisPage(), textScale: 2));
+    testWidgets('Settings', (t) => pump(t, const SettingsPage(), textScale: 2));
+  });
+
   testWidgets('the device-code screen lays out', (tester) async {
     // Never pumpAndSettle here: the screen holds a spinner and a one-second
     // countdown, so it is never quiet.
-    final auth = AuthBloc(repository: _StubAuth())..add(const StartDeviceFlow());
+    final auth = AuthBloc(repository: _StubAuth())
+      ..add(const StartDeviceFlow());
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
           BlocProvider<AuthBloc>.value(value: auth),
           BlocProvider<SettingsBloc>(
-            create: (_) =>
-                SettingsBloc(
-                  repository: _StubSettings(),
-                  scheduler: _StubScheduler(),
-                )..add(LoadSettings()),
+            create: (_) => SettingsBloc(
+              repository: _StubSettings(),
+              scheduler: _StubScheduler(),
+              auth: _StubAuth(),
+              tracker: _StubTracker(source),
+            )..add(LoadSettings()),
           ),
         ],
         child: MaterialApp(theme: AppTheme.dark, home: const LoginPage()),
@@ -185,8 +226,15 @@ class _StubTracker implements TrackerRepository {
   );
 
   @override
+  Future<Either<Failure, ReminderCheck>> recordReminderOutcomes() async =>
+      const Right(ReminderCheck());
+
+  @override
   Future<Either<Failure, DataFreshness>> sync() async =>
       const Right(DataFreshness.fresh);
+
+  @override
+  Future<Either<Failure, void>> clearForSignOut() async => const Right(null);
 
   @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async =>
@@ -203,12 +251,12 @@ class _StubScheduler extends ReminderScheduler {
   _StubScheduler() : super(notifications: NotificationService());
 
   @override
-  Future<void> apply({
+  Future<ScheduleOutcome> apply({
     required bool enabled,
     required List<String> times,
     required String timezone,
     required bool includeWeekends,
-  }) async {}
+  }) async => ScheduleOutcome(scheduled: times, dropped: const []);
 }
 
 class _StubSettings implements SettingsRepository {
@@ -229,9 +277,16 @@ class _StubSettings implements SettingsRepository {
       const Right(null);
 
   @override
-  Future<Either<Failure, void>> markInstalled() async => const Right(null);
+  Future<Either<Failure, AppSettings>> clearAccount() async => const Right(
+    AppSettings(
+      username: '',
+      timezone: 'UTC',
+      remindersEnabled: false,
+      reminderTimes: [],
+      trackWeekends: true,
+    ),
+  );
 }
-
 
 /// A device flow that hands out a code and then waits forever, which is the
 /// state the screen spends its whole life in.
@@ -256,7 +311,7 @@ class _StubAuth implements AuthRepository {
       Completer<AuthPoll>().future;
 
   @override
-  Future<bool> refreshIfNeeded() async => true;
+  Future<bool> refreshIfNeeded({bool force = false}) async => true;
 
   @override
   Future<void> signOut() async {}

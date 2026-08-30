@@ -76,34 +76,43 @@ class _TimezonePickerState extends State<TimezonePicker> {
             ),
           ),
           Expanded(
-            child: ListView(
-              controller: controller,
-              children: [
-                if (detected != null && q.isEmpty) ...[
-                  _Heading(label: 'Detected on this device'),
-                  _ZoneTile(zone: detected, highlight: true),
-                  if (nearby.isNotEmpty) ...[
-                    _Heading(
-                      label:
-                          'Same offset (${TimezoneService.offsetLabel(detected)})',
-                    ),
-                    for (final z in nearby) _ZoneTile(zone: z),
+            // builder, not a children list: there are over 400 zones and the
+            // eager version built every tile to show the first ten.
+            child: Builder(
+              builder: (context) {
+                final rows = <Widget>[
+                  if (detected != null && q.isEmpty) ...[
+                    _Heading(label: 'Detected on this device'),
+                    _ZoneTile(zone: detected, highlight: true),
+                    if (nearby.isNotEmpty) ...[
+                      _Heading(
+                        label:
+                            'Same offset '
+                            '(${TimezoneService.offsetLabel(detected)})',
+                      ),
+                      for (final z in nearby) _ZoneTile(zone: z),
+                    ],
+                    _Heading(label: 'All zones'),
                   ],
-                  _Heading(label: 'All zones'),
-                ],
-                if (matches.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xxl),
-                    child: Text(
-                      'No zone matches "$_query".',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                  if (matches.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      child: Text(
+                        'No zone matches "$_query".',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                      ),
                     ),
-                  ),
-                for (final z in matches) _ZoneTile(zone: z),
-              ],
+                  for (final z in matches) _ZoneTile(zone: z),
+                ];
+                return ListView.builder(
+                  controller: controller,
+                  itemCount: rows.length,
+                  itemBuilder: (_, i) => rows[i],
+                );
+              },
             ),
           ),
         ],

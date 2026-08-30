@@ -9,27 +9,47 @@ import '../../../../core/theme/app_tokens.dart';
 /// y-scale. Grid and axis stay recessive; the endpoint is emphasised because
 /// "where it is now" is the thing being read.
 class TrendChart extends StatelessWidget {
-  const TrendChart({required this.values, this.height = 96, super.key});
+  const TrendChart({
+    required this.values,
+    this.label = 'Daily contributions',
+    this.height = 96,
+    super.key,
+  });
 
   final List<int> values;
+
+  /// What the series is, for a reader who cannot see it. A CustomPaint
+  /// announces nothing at all on its own.
+  final String label;
+
   final double height;
+
+  /// Whether there is enough here to draw. Callers check this before building
+  /// the card around it, or a new user gets an empty 32px card under a
+  /// heading.
+  bool get hasSeries => values.length >= 2;
 
   @override
   Widget build(BuildContext context) {
-    if (values.length < 2) return const SizedBox.shrink();
+    if (!hasSeries) return const SizedBox.shrink();
     final t = context.tokens;
+    final max = values.reduce((a, b) => a > b ? a : b);
 
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: CustomPaint(
-        painter: _TrendPainter(
-          values: values,
-          line: t.accent,
-          fill: t.accent.withValues(alpha: 0.14),
-          grid: t.border,
-          endpoint: t.accent,
-          endpointRing: t.surface,
+    return Semantics(
+      label: label,
+      value: 'latest ${values.last}, highest $max, over ${values.length} days',
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: CustomPaint(
+          painter: _TrendPainter(
+            values: values,
+            line: t.success,
+            fill: t.success.withValues(alpha: 0.14),
+            grid: t.border,
+            endpoint: t.success,
+            endpointRing: t.surface,
+          ),
         ),
       ),
     );

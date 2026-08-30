@@ -86,6 +86,42 @@ void main() {
         expect(items[i - 1].occurredAt.isBefore(items[i].occurredAt), isFalse);
       }
     });
+
+    test('opening a pull request and reviewing it are two contributions', () {
+      // Both node lists select `pullRequest { id }`, so a PR you opened and
+      // later reviewed arrives twice under one id. The id is the primary key
+      // with ConflictAlgorithm.replace behind it, so one used to overwrite
+      // the other. The recorded fixture has no review nodes, which is exactly
+      // why this needs a hand-built one.
+      const pr = {
+        'id': 'PR_same',
+        'title': 'Add the thing',
+        'repository': {'nameWithOwner': 'acme/api', 'isPrivate': false},
+      };
+      final both = {
+        'contributionsCollection': {
+          'pullRequestContributions': {
+            'nodes': [
+              {'occurredAt': '2026-08-20T09:00:00Z', 'pullRequest': pr},
+            ],
+          },
+          'pullRequestReviewContributions': {
+            'nodes': [
+              {'occurredAt': '2026-08-21T09:00:00Z', 'pullRequest': pr},
+            ],
+          },
+        },
+      };
+
+      final items = GitHubTrackerDataSource.parseActivity(both);
+
+      expect(items.length, 2);
+      expect(items.map((a) => a.id).toSet().length, 2);
+      expect(items.map((a) => a.type).toSet(), {
+        ContributionType.pullRequest,
+        ContributionType.review,
+      });
+    });
   });
 
   group('repos', () {

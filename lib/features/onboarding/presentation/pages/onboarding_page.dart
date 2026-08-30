@@ -2,8 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/widgets.dart';
 
+/// Three screens, then the sign-in.
+///
+/// Chrome, start to finish — so this is one of the few places allowed to draw
+/// the logo's gradient. It carries no state meaning here, which is exactly why
+/// it is safe: the previous version painted an 80px icon and every control in
+/// `danger`, against the rule written on the token itself, and teaching
+/// someone to read the alarm colour as decoration is how you make them ignore
+/// it on the day it matters.
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
 
@@ -15,27 +25,28 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<OnboardingContent> _pages = [
-    OnboardingContent(
-      title: 'Track Your GitHub Journey',
-      description:
-          'Monitor your daily commits, contributions, and maintain your coding streak with beautiful visualizations.',
-      icon: Icons.show_chart,
-      accent: OnboardingAccent.info,
+  static const _pages = [
+    _Slide(
+      title: 'Your streak runs on GitHub time',
+      body:
+          'The contribution day closes at midnight UTC, which is not midnight '
+          'where you are. One Last Commit counts the day GitHub counts.',
+      icon: Icons.public,
     ),
-    OnboardingContent(
-      title: 'Never Miss a Day',
-      description:
-          'Smart notifications remind you to make that one last commit before the day ends.',
-      icon: Icons.notifications_active,
-      accent: OnboardingAccent.danger,
+    _Slide(
+      title: 'A nudge while there is still room',
+      body:
+          'Reminders are scheduled in advance and withdrawn once the day is '
+          'safe, so a missed background check means a spare nudge — never a '
+          'silent night.',
+      icon: Icons.notifications_active_outlined,
     ),
-    OnboardingContent(
-      title: 'Stay Motivated',
-      description:
-          'Watch your contribution graph grow and celebrate your coding achievements every day.',
-      icon: Icons.emoji_events,
-      accent: OnboardingAccent.accent,
+    _Slide(
+      title: 'Including the work that never counted',
+      body:
+          'Pushes to a branch your repository does not count earn no square. '
+          'This is the app that tells you where they went.',
+      icon: Icons.query_stats_outlined,
     ),
   ];
 
@@ -45,13 +56,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _onPageChanged(int page) {
-    setState(() {
-      _currentPage = page;
-    });
-  }
-
-  void _nextPage() {
+  void _next() {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -62,62 +67,43 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  void _skip() {
-    context.go(Routes.login);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final last = _currentPage == _pages.length - 1;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(width: 60),
-                  Row(
-                    children: List.generate(
-                      _pages.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentPage == index ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? context.tokens.info
-                              : context.tokens.textSecondary,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
+                  _Dots(count: _pages.length, active: _currentPage),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.go(Routes.login),
+                    child: const Text('Skip'),
                   ),
-                  TextButton(onPressed: _skip, child: const Text('Skip')),
                 ],
               ),
             ),
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                onPageChanged: _onPageChanged,
+                onPageChanged: (page) => setState(() => _currentPage = page),
                 itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  return _OnboardingPageContent(content: _pages[index]);
-                },
+                itemBuilder: (context, index) =>
+                    _SlideView(slide: _pages[index], index: index),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(AppSpacing.xl),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _nextPage,
-                  child: Text(
-                    _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                  ),
+                  onPressed: _next,
+                  child: Text(last ? 'Get started' : 'Next'),
                 ),
               ),
             ),
@@ -128,65 +114,75 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 }
 
-/// Which semantic token an onboarding page leans on. Stored as a role rather
-/// than a Color so the content list stays a plain field — a Color would have to
-/// be resolved from a BuildContext, which is not available in an initializer.
-enum OnboardingAccent { info, danger, accent }
+class _Dots extends StatelessWidget {
+  const _Dots({required this.count, required this.active});
 
-class OnboardingContent {
-  final String title;
-  final String description;
-  final IconData icon;
-  final OnboardingAccent accent;
-
-  OnboardingContent({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.accent,
-  });
-}
-
-class _OnboardingPageContent extends StatelessWidget {
-  final OnboardingContent content;
-
-  const _OnboardingPageContent({required this.content});
-
-  Color _accent(BuildContext context) => switch (content.accent) {
-    OnboardingAccent.info => context.tokens.info,
-    OnboardingAccent.danger => context.tokens.danger,
-    OnboardingAccent.accent => context.tokens.accent,
-  };
+  final int count;
+  final int active;
 
   @override
   Widget build(BuildContext context) {
-    final accent = _accent(context);
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    final t = context.tokens;
+    return Semantics(
+      label: 'Page ${active + 1} of $count',
+      child: Row(
         children: [
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+          for (var i = 0; i < count; i++)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.only(right: AppSpacing.xs),
+              width: i == active ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: i == active ? t.accent : t.border,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
             ),
-            child: Icon(content.icon, size: 100, color: accent),
-          ),
-          const SizedBox(height: 48),
+        ],
+      ),
+    );
+  }
+}
+
+class _Slide {
+  const _Slide({required this.title, required this.body, required this.icon});
+
+  final String title;
+  final String body;
+  final IconData icon;
+}
+
+class _SlideView extends StatelessWidget {
+  const _SlideView({required this.slide, required this.index});
+
+  final _Slide slide;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+
+    // Scrollable, because the previous version was a fixed Column inside a
+    // PageView and overflowed on a small phone at 1.5x text.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.lg,
+      ),
+      child: Column(
+        children: [
+          BrandMark(icon: slide.icon, size: 168, variant: index),
+          const SizedBox(height: AppSpacing.xxl),
           Text(
-            content.title,
-            style: Theme.of(context).textTheme.headlineMedium,
+            slide.title,
+            style: text.headlineMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.lg),
           Text(
-            content.description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: context.tokens.textSecondary,
-            ),
+            slide.body,
+            style: text.bodyLarge?.copyWith(color: t.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

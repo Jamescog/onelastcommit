@@ -52,7 +52,14 @@ Future<void> init() async {
   sl.registerLazySingleton(() => NotificationService());
   sl.registerLazySingleton(() => ReminderScheduler(notifications: sl()));
 
-  sl.registerFactory(() => SettingsBloc(repository: sl(), scheduler: sl()));
+  sl.registerFactory(
+    () => SettingsBloc(
+      repository: sl(),
+      scheduler: sl(),
+      auth: sl(),
+      tracker: sl(),
+    ),
+  );
   sl.registerFactory(() => AuthBloc(repository: sl()));
   sl.registerFactory(() => TrackerBloc(repository: sl()));
 
@@ -85,6 +92,18 @@ Future<void> init() async {
     () => TrackerLocalDataSourceImpl(databaseService: sl()),
   );
   sl.registerLazySingleton<TrackerRepository>(
-    () => TrackerRepositoryImpl(remote: sl(), local: sl(), settings: sl()),
+    () => TrackerRepositoryImpl(
+      remote: sl(),
+      local: sl(),
+      settings: sl(),
+      notifications: sl(),
+    ),
   );
+
+  // Last, because it closes a loop: the transport refreshes through the auth
+  // repository, and the auth repository resolves a login through the
+  // transport. Neither can be constructed holding the other, so the edge is
+  // wired once both exist.
+  sl<GitHubClient>().refreshHandler = ({bool force = false}) =>
+      sl<AuthRepository>().refreshIfNeeded(force: force);
 }

@@ -7,6 +7,73 @@ import '../support/builders.dart';
 void main() {
   final now = DateTime.utc(2026, 8, 26, 15);
 
+  group('which row is today', () {
+    // The whole class of stale-input bugs. Every other test in this file
+    // builds days that end on `now`, so none of them could ever have caught
+    // a mirror written before the UTC day rolled over.
+
+    test('a mirror that stops at yesterday is never reported as safe', () {
+      // Synced at 23:50 UTC with five contributions; it is now 00:30 the next
+      // day. Reading the count off days.last would pair yesterday's five with
+      // today's countdown and render the green "Safe today" card on an empty
+      // day.
+      final streak = StreakCalculator.streakFrom(
+        daysEnding(now.subtract(const Duration(days: 1)), [1, 2, 1, 3, 5]),
+        now: now,
+      )!;
+
+      expect(streak.todayCount, 0);
+      expect(streak.isSafeToday, isFalse);
+      expect(streak.atRisk, isTrue);
+      expect(streak.todayDate, label(now));
+    });
+
+    test('the streak itself survives the rollover', () {
+      // Yesterday was covered, so the run is real and still five long. It is
+      // today that is unknown, not the history.
+      final streak = StreakCalculator.streakFrom(
+        daysEnding(now.subtract(const Duration(days: 1)), [1, 2, 1, 3, 5]),
+        now: now,
+      )!;
+
+      expect(streak.current, 5);
+    });
+
+    test('a missing today row is never called fresh', () {
+      final streak = StreakCalculator.streakFrom(
+        daysEnding(now.subtract(const Duration(days: 1)), [1, 1]),
+        now: now,
+        freshness: DataFreshness.fresh,
+      )!;
+
+      // The sync clock can say the mirror is minutes old and still hold
+      // nothing about the day the user is currently in.
+      expect(streak.freshness, DataFreshness.stale);
+      expect(streak.isUncertain, isTrue);
+    });
+
+    test('a trailing zero on a stale mirror is a real broken day', () {
+      // The pending-today skip applies only to a genuine today row. Yesterday
+      // ending in a zero means the streak is already gone.
+      final streak = StreakCalculator.streakFrom(
+        daysEnding(now.subtract(const Duration(days: 1)), [4, 4, 4, 0]),
+        now: now,
+      )!;
+
+      expect(streak.current, 0);
+    });
+
+    test('an error stays an error rather than softening to stale', () {
+      final streak = StreakCalculator.streakFrom(
+        daysEnding(now.subtract(const Duration(days: 1)), [1, 1]),
+        now: now,
+        freshness: DataFreshness.error,
+      )!;
+
+      expect(streak.freshness, DataFreshness.error);
+    });
+  });
+
   group('the pending-today rule', () {
     test('an empty today does not break the streak', () {
       // Four active days, then nothing yet today. The streak is 4 and at
@@ -186,7 +253,7 @@ void main() {
       );
 
       expect(insights.consistency, 0);
-      expect(insights.uncountedShare, 0);
+      expect(insights.uncountedPushes, 0);
       expect(insights.peakHour, isNull);
     });
   });

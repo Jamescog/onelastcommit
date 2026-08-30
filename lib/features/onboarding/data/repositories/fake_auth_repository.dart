@@ -40,7 +40,7 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<bool> refreshIfNeeded() async => true;
+  Future<bool> refreshIfNeeded({bool force = false}) async => true;
 
   @override
   Future<void> signOut() async {}

@@ -1,10 +1,13 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/github/github_exceptions.dart';
 import '../../../../core/util/build_identity.dart';
+import '../../../../core/util/notification_service.dart';
 import '../../../settings/data/datasources/settings_local_data_source.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/tracker_repository.dart';
+import '../../domain/services/reminder_journal.dart';
 import '../../domain/services/streak_calculator.dart';
 import '../datasources/tracker_data_source.dart';
 import '../datasources/tracker_local_data_source.dart';
@@ -16,14 +19,21 @@ import '../datasources/tracker_local_data_source.dart';
 /// the same path, and the difference shows up as [DataFreshness] rather than
 /// as a different code branch.
 class TrackerRepositoryImpl implements TrackerRepository {
-  const TrackerRepositoryImpl({
+  TrackerRepositoryImpl({
     required this.remote,
     required this.local,
     required this.settings,
+    required this.notifications,
   });
 
   final TrackerDataSource remote;
   final TrackerLocalDataSource local;
+
+  /// Consulted for one thing only: whether Android is actually showing our
+  /// reminders. A history row saying we nagged someone is a lie when the
+  /// permission was withheld, and it would go on to claim credit for saves
+  /// that no notification caused.
+  final NotificationService notifications;
 
   /// Only for `installedAt`, which anchors the OLC era on the analysis
   /// page. It never gates whether a contribution counts toward the streak —
@@ -34,14 +44,22 @@ class TrackerRepositoryImpl implements TrackerRepository {
   /// the data being shown — it stops the app claiming certainty about it.
   static const staleAfter = Duration(hours: 6);
 
+  /// When the last refresh attempt failed, if it is more recent than the last
+  /// one that worked.
+  ///
+  /// Age alone is not honesty: a sync that failed forty minutes after a
+  /// successful one leaves a mirror that is technically fresh and factually
+  /// unverified, and the user who just pulled to refresh watched it fail.
+  DateTime? _lastFailureAt;
+
   @override
   Future<Either<Failure, GitHubProfile>> getProfile() async {
     try {
       final profile = await local.getProfile();
-      if (profile == null) return Left(CacheFailure());
+      if (profile == null) return const Left(CacheFailure());
       return Right(profile);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -53,7 +71,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getCalendar(from: from, to: to));
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -64,7 +82,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getActivity(limit: limit));
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -73,7 +91,7 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       return Right(await local.getRepos());
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -86,10 +104,10 @@ class TrackerRepositoryImpl implements TrackerRepository {
         now: DateTime.now(),
         freshness: await currentFreshness(),
       );
-      if (streak == null) return Left(CacheFailure());
+      if (streak == null) return const Left(EmptyMirrorFailure());
       return Right(streak);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -106,7 +124,83 @@ class TrackerRepositoryImpl implements TrackerRepository {
         ),
       );
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
+    }
+  }
+
+  /// Reminder history, recorded and settled.
+  ///
+  /// Two passes over the same local data. The first reconstructs firings the
+  /// OS delivered while the app was not running — nothing reports those, so
+  /// they are derived from the schedule and the high-water mark below. The
+  /// second asks the calendar what became of every reminder still open,
+  /// including the ones just written, because a nag from last night is
+  /// usually answerable by the time the app is next opened.
+  @override
+  Future<Either<Failure, ReminderCheck>> recordReminderOutcomes() async {
+    try {
+      final now = DateTime.now().toUtc();
+      final since = await local.getLastReminderCheckAt();
+
+      // First run. We cannot claim reminders fired before we started
+      // watching for them, so this only starts the clock.
+      if (since == null) {
+        await local.setLastReminderCheckAt(now);
+        return const Right(ReminderCheck());
+      }
+
+      final saved = await settings.getSettings();
+      final days = await local.getCalendar();
+      final open = await local.getReminders();
+
+      final recorded = <ReminderEvent>[];
+      if (saved.remindersEnabled && await _notificationsAllowed()) {
+        final known = open.map((e) => e.id).toSet();
+        for (final at in ReminderJournal.firingsBetween(
+          times: saved.reminderTimes,
+          timezone: saved.timezone,
+          includeWeekends: saved.trackWeekends,
+          after: since,
+          until: now,
+        )) {
+          if (!known.add(ReminderJournal.idFor(at))) continue;
+          recorded.add(ReminderJournal.record(sentAt: at, days: days));
+        }
+      }
+
+      final syncedAt = await local.getLastSyncedAt();
+      final resolved = <ReminderEvent>[];
+      for (final event in [...open, ...recorded]) {
+        final settled = ReminderJournal.resolve(
+          event,
+          days: days,
+          now: now,
+          syncedAt: syncedAt,
+        );
+        if (settled != null) resolved.add(settled);
+      }
+
+      // Recorded first, resolved second: a firing that was answered in the
+      // same pass appears in both lists, and the write replaces on id, so
+      // the settled version has to land last.
+      await local.saveReminders([...recorded, ...resolved]);
+      await local.setLastReminderCheckAt(now);
+
+      return Right(ReminderCheck(recorded: recorded, resolved: resolved));
+    } catch (_) {
+      return const Left(CacheFailure());
+    }
+  }
+
+  /// Whether the OS would have shown a reminder scheduled for this window.
+  ///
+  /// Off-device there is no plugin to ask; assuming allowed there keeps tests
+  /// and the desktop build recording rather than silently doing nothing.
+  Future<bool> _notificationsAllowed() async {
+    try {
+      return (await notifications.permissions()).notificationsAllowed;
+    } catch (_) {
+      return true;
     }
   }
 
@@ -124,20 +218,27 @@ class TrackerRepositoryImpl implements TrackerRepository {
       await local.saveRepos(repos);
       await local.saveReminders(reminders);
       await local.saveProfile(profile);
-
-      // Everything before today is now final.
-      if (days.isNotEmpty) {
-        await local.sealDaysBefore(days.last.date);
-      }
       await local.setLastSyncedAt(DateTime.now().toUtc());
+      _lastFailureAt = null;
       return const Right(DataFreshness.fresh);
-    } catch (_) {
-      // A failed refresh is not a failed read. The mirror still holds real
-      // data; it just cannot be vouched for any more.
-      final hasCache = (await _safeDayCount()) > 0;
-      return Right(hasCache ? DataFreshness.stale : DataFreshness.error);
+    } catch (e) {
+      // A failed refresh is not a failed read — the mirror still holds real
+      // data. But it is still a failure, and returning Right() for it meant
+      // every caller was structurally unable to notice. The typed exception
+      // survives to the UI now instead of being erased here.
+      _lastFailureAt = DateTime.now().toUtc();
+      return Left(_failureFor(e));
     }
   }
+
+  static Failure _failureFor(Object e) => switch (e) {
+    GitHubUnauthorized() => const AuthFailure(),
+    GitHubUnreachable() => const NetworkFailure(),
+    GitHubRateLimited() => const RateLimitFailure(),
+    GitHubForbidden(:final message) => ServerFailure(message),
+    GitHubException(:final message) => ServerFailure(message),
+    _ => const CacheFailure('Could not store what GitHub sent'),
+  };
 
   @override
   Future<bool> resetIfBuildChanged() async {
@@ -158,22 +259,24 @@ class TrackerRepositoryImpl implements TrackerRepository {
   }
 
   @override
+  Future<Either<Failure, void>> clearForSignOut() async {
+    try {
+      await local.clearAll();
+      return const Right(null);
+    } catch (_) {
+      return const Left(CacheFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, DataFreshness>> resetAndSync() async {
     try {
       await local.clearAll();
       await local.setBuildId(BuildIdentity.value);
     } catch (_) {
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
     return sync();
-  }
-
-  Future<int> _safeDayCount() async {
-    try {
-      return (await local.getCalendar()).length;
-    } catch (_) {
-      return 0;
-    }
   }
 
   /// How much the mirror can be trusted right now, independent of any refresh.
@@ -181,6 +284,8 @@ class TrackerRepositoryImpl implements TrackerRepository {
     try {
       final last = await local.getLastSyncedAt();
       if (last == null) return DataFreshness.error;
+      final failed = _lastFailureAt;
+      if (failed != null && failed.isAfter(last)) return DataFreshness.stale;
       final age = DateTime.now().toUtc().difference(last);
       return age > staleAfter ? DataFreshness.stale : DataFreshness.fresh;
     } catch (_) {

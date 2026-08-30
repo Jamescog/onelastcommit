@@ -28,6 +28,16 @@ class RepoContribution extends Equatable {
 
   bool get hasUncountedWork => uncountedPushes > 0;
 
+  RepoContribution withUncounted(int pushes) => RepoContribution(
+    name: name,
+    contributionCount: contributionCount,
+    lastActivityAt: lastActivityAt,
+    uncountedPushes: pushes,
+    isPrivate: isPrivate,
+    isFork: isFork,
+    primaryLanguage: primaryLanguage,
+  );
+
   @override
   List<Object?> get props => [
     name,

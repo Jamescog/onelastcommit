@@ -106,7 +106,7 @@ class AppTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: t.info,
+          foregroundColor: t.accent,
           textStyle: textTheme.labelLarge,
         ),
       ),

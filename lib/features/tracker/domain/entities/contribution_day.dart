@@ -13,7 +13,6 @@ class ContributionDay extends Equatable {
     required this.level,
     this.firstContributionAt,
     this.lastContributionAt,
-    this.countedPushes = 0,
     this.uncountedPushes = 0,
   });
 
@@ -32,9 +31,10 @@ class ContributionDay extends Equatable {
   final DateTime? firstContributionAt;
   final DateTime? lastContributionAt;
 
-  /// Pushes that did and did not earn a square. The gap between them is the
-  /// diagnostic no other tool can show — see PLAN.md section 1.
-  final int countedPushes;
+  /// Pushes seen in the public events feed that went to a branch this
+  /// repository does not count. The diagnostic no other tool shows — see
+  /// PLAN.md section 1 — but a floor, never a total: private work never
+  /// reaches the feed, and the feed is thin even for public work.
   final int uncountedPushes;
 
   bool get hasContributions => count > 0;
@@ -51,7 +51,6 @@ class ContributionDay extends Equatable {
     level,
     firstContributionAt,
     lastContributionAt,
-    countedPushes,
     uncountedPushes,
   ];
 }

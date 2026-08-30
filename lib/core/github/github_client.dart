@@ -43,7 +43,24 @@ class GitHubClient {
   /// verify a query before the device flow exists.
   String? debugTokenOverride;
 
+  /// Swaps a spent token for a live one. Wired in the injection container,
+  /// because the refresh needs this client to resolve a login and this client
+  /// needs the refresh to hold a token — neither can construct the other.
+  ///
+  /// Without it the transport read whatever was in secure storage and sent it
+  /// regardless. GitHub's device-flow tokens expire in eight hours, so every
+  /// user was signed out for good after a working day: the 401 became a
+  /// swallowed sync, the swallowed sync became a stale banner, and the router
+  /// keyed on settings rather than credentials, so nothing ever offered a way
+  /// back in.
+  Future<bool> Function({bool force})? refreshHandler;
+
   Future<Map<String, String>> _headers() async {
+    // Refreshed before it is spent rather than after it breaks — a token that
+    // expires mid-request fails the request.
+    if (debugTokenOverride == null && await credentials.needsRefresh()) {
+      await refreshHandler?.call();
+    }
     final token = debugTokenOverride ?? await credentials.readAccessToken();
     if (token == null || token.isEmpty) {
       throw const GitHubUnauthorized('No token stored');
@@ -110,7 +127,10 @@ class GitHubClient {
     return decoded;
   }
 
-  Future<http.Response> _send(Future<http.Response> Function() request) async {
+  Future<http.Response> _send(
+    Future<http.Response> Function() request, {
+    bool allowRetry = true,
+  }) async {
     final http.Response response;
     try {
       response = await request();
@@ -129,6 +149,15 @@ class GitHubClient {
       case 304:
         return response;
       case 401:
+        // A token can be dead without being near expiry — a revoked grant, a
+        // password change. One forced refresh, then believe it. The request
+        // thunk rebuilds its own headers, so the retry carries the new token.
+        final refresh = refreshHandler;
+        if (allowRetry && debugTokenOverride == null && refresh != null) {
+          if (await refresh(force: true)) {
+            return _send(request, allowRetry: false);
+          }
+        }
         throw const GitHubUnauthorized();
       case 403:
       case 429:

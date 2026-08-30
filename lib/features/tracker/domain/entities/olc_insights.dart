@@ -98,7 +98,6 @@ class OlcInsights extends Equatable {
     required this.rollingWeekAverage,
     this.closestCall,
     this.medianResponseTime,
-    this.countedPushes = 0,
     this.uncountedPushes = 0,
     this.breaks = const [],
     this.longestStreakInEra = 0,
@@ -129,7 +128,12 @@ class OlcInsights extends Equatable {
 
   // --- Composition ---
   final Map<ContributionType, int> composition;
-  final int countedPushes;
+
+  /// Public pushes in the era that went to a branch their repository does not
+  /// count. A floor, not a total — and never a numerator: it was once divided
+  /// by the calendar's contribution count, which includes issues, reviews and
+  /// private work the feed cannot see, and the quotient was rendered as
+  /// "N% of your pushes earned no square".
   final int uncountedPushes;
 
   // --- Rhythm ---
@@ -148,12 +152,6 @@ class OlcInsights extends Equatable {
 
   double get consistency =>
       daysTracked == 0 ? 0 : daysWithContributions / daysTracked;
-
-  /// Share of pushed work that earned no square.
-  double get uncountedShare {
-    final total = countedPushes + uncountedPushes;
-    return total == 0 ? 0 : uncountedPushes / total;
-  }
 
   /// The hour the user most often contributes in. Null before any data.
   int? get peakHour {
@@ -176,7 +174,6 @@ class OlcInsights extends Equatable {
     closestCall,
     medianResponseTime,
     composition,
-    countedPushes,
     uncountedPushes,
     hourHistogram,
     weekdayHistogram,

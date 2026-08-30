@@ -10,6 +10,18 @@ import 'notification_service.dart';
 /// the day turns out not to need. Nothing here knows whether the user is safe —
 /// this only guarantees the nag exists, because if the check never runs the
 /// worst outcome must be a redundant reminder, never a silent broken streak.
+/// What [ReminderScheduler.apply] managed to register.
+class ScheduleOutcome {
+  const ScheduleOutcome({required this.scheduled, required this.dropped});
+
+  final List<String> scheduled;
+
+  /// Times the user asked for that will never fire.
+  final List<String> dropped;
+
+  bool get isComplete => dropped.isEmpty;
+}
+
 class ReminderScheduler {
   const ReminderScheduler({required this.notifications});
 
@@ -58,6 +70,30 @@ class ReminderScheduler {
     }
   }
 
+  /// The times the app offers.
+  ///
+  /// One list, because setup used to offer sixteen and settings eleven: pick
+  /// 09:00 during setup and the settings screen had no chip for it, so the
+  /// reminder was invisible, unremovable, and still firing.
+  static const offeredTimes = [
+    '08:00',
+    '09:00',
+    '10:00',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
+    '15:00',
+    '16:00',
+    '17:00',
+    '18:00',
+    '19:00',
+    '20:00',
+    '21:00',
+    '22:00',
+    '23:00',
+  ];
+
   /// True when [time] fires with under [warnRunway] left. The settings screen
   /// warns about these.
   static bool tooCloseToDeadline(String time, String zoneName) {
@@ -69,7 +105,12 @@ class ReminderScheduler {
   ///
   /// Cancel-and-replace rather than diffing: the whole set is derived from
   /// settings in one pass, so there is no partial state to get out of sync.
-  Future<void> apply({
+  ///
+  /// Returns which times were actually registered. Every reason a time can be
+  /// dropped — an unresolvable zone, a runway too short to act in, a
+  /// malformed string — used to be a silent `continue`, and the UI went on
+  /// describing reminders as on.
+  Future<ScheduleOutcome> apply({
     required bool enabled,
     required List<String> times,
     required String timezone,
@@ -78,7 +119,12 @@ class ReminderScheduler {
     for (final request in await notifications.pending()) {
       if (request.id >= _idBase) await notifications.cancel(request.id);
     }
-    if (!enabled || times.isEmpty) return;
+    if (!enabled || times.isEmpty) {
+      return ScheduleOutcome(
+        scheduled: const [],
+        dropped: enabled ? times : const [],
+      );
+    }
 
     final tz.Location zone;
     try {
@@ -86,20 +132,29 @@ class ReminderScheduler {
     } catch (_) {
       // Better no reminder than one firing at a guessed hour. The timezone
       // card is already showing a warning for this state.
-      return;
+      return ScheduleOutcome(scheduled: const [], dropped: times);
     }
 
     final exact = (await notifications.permissions()).exactAlarmsAllowed;
+    final scheduled = <String>[];
+    final dropped = <String>[];
 
     for (var i = 0; i < times.length; i++) {
       final time = times[i];
       final runway = runwayOf(time, timezone);
-      if (runway != null && runway < minRunway) continue;
+      if (runway != null && runway < minRunway) {
+        dropped.add(time);
+        continue;
+      }
 
       final parts = time.split(':');
       final hour = int.tryParse(parts[0]);
       final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
-      if (hour == null || minute == null) continue;
+      if (hour == null || minute == null) {
+        dropped.add(time);
+        continue;
+      }
+      scheduled.add(time);
 
       if (includeWeekends) {
         await _schedule(
@@ -121,7 +176,16 @@ class ReminderScheduler {
         }
       }
     }
+    return ScheduleOutcome(scheduled: scheduled, dropped: dropped);
   }
+
+  /// Withdraws everything, scheduled and already showing.
+  ///
+  /// [apply] only touches the ids it owns, because a transient notification
+  /// is not its business. Sign-out is the opposite case: a nag left on the
+  /// lock screen for an account the phone no longer holds a token for is
+  /// worse than useless, so this clears the lot.
+  Future<void> cancelAll() => notifications.cancelAll();
 
   Future<void> _schedule({
     required int id,
@@ -130,11 +194,13 @@ class ReminderScheduler {
     required bool exact,
   }) => notifications.scheduleReminder(
     id: id,
-    // Static copy, written at schedule time when nothing is known about the
-    // day. It is phrased as our best knowledge rather than a fact, because
-    // when the cancelling check could not run, firing anyway is the point.
+    // Static copy, fixed at schedule time, when nothing is known about the
+    // day it will fire on. It used to assert that nothing had counted — a
+    // claim the app had not checked, and cannot check from here. Firing on a
+    // day already covered is the acceptable failure of this design, so the
+    // wording has to be a question rather than a false statement.
     title: 'One last commit?',
-    body: 'Nothing has counted toward your streak yet today.',
+    body: "We couldn't check today's status. Worth a look.",
     at: at,
     repeat: repeat,
     exact: exact,

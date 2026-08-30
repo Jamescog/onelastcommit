@@ -17,11 +17,19 @@ class CountdownText extends StatefulWidget {
   const CountdownText({
     required this.deadlineUtc,
     this.safe = false,
+    this.onRollover,
     super.key,
   });
 
   final DateTime deadlineUtc;
   final bool safe;
+
+  /// Fired once, when the countdown reaches zero.
+  ///
+  /// Without it the widget pinned at "0m left today" beside the finished
+  /// day's count and stayed there — the single minute of the day this app
+  /// exists for, spent showing the previous day's answer.
+  final VoidCallback? onRollover;
 
   @override
   State<CountdownText> createState() => _CountdownTextState();
@@ -29,6 +37,7 @@ class CountdownText extends StatefulWidget {
 
 class _CountdownTextState extends State<CountdownText> {
   Timer? _timer;
+  bool _rolledOver = false;
   late Duration _left = _remaining();
 
   @override
@@ -36,8 +45,20 @@ class _CountdownTextState extends State<CountdownText> {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _left = _remaining());
+      final left = _remaining();
+      if (left == Duration.zero && !_rolledOver) {
+        _rolledOver = true;
+        widget.onRollover?.call();
+      }
+      setState(() => _left = left);
     });
+  }
+
+  @override
+  void didUpdateWidget(CountdownText old) {
+    super.didUpdateWidget(old);
+    // A new deadline means the reload landed; arm the next rollover.
+    if (old.deadlineUtc != widget.deadlineUtc) _rolledOver = false;
   }
 
   @override
@@ -59,10 +80,12 @@ class _CountdownTextState extends State<CountdownText> {
     final hours = _left.inHours;
     final minutes = _left.inMinutes % 60;
 
-    // Under two hours the exact minute matters, so it is spelled out.
+    // Under two hours the exact minute matters, so it is spelled out. The
+    // day is named as the UTC one: "left today" alone reads as the user's
+    // today, which is the whole ambiguity this countdown exists to remove.
     final label = hours >= 2
-        ? '${hours}h ${minutes}m left today'
-        : '${_left.inMinutes}m left today';
+        ? '${hours}h ${minutes}m left in the UTC day'
+        : '${_left.inMinutes}m left in the UTC day';
 
     return Row(
       children: [
@@ -72,10 +95,12 @@ class _CountdownTextState extends State<CountdownText> {
           color: widget.safe ? t.textSecondary : t.danger,
         ),
         const SizedBox(width: 6),
-        Text(
-          widget.safe ? 'Day closes in ${_compact()}' : label,
-          style: text.bodySmall?.copyWith(
-            color: widget.safe ? t.textSecondary : t.danger,
+        Flexible(
+          child: Text(
+            widget.safe ? 'UTC day closes in ${_compact()}' : label,
+            style: text.bodySmall?.copyWith(
+              color: widget.safe ? t.textSecondary : t.danger,
+            ),
           ),
         ),
       ],
