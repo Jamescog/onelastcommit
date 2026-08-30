@@ -24,7 +24,7 @@ class ReposTab extends StatelessWidget {
                   'to one.',
             );
           }
-          return _Loaded(repos: state.repos);
+          return _Loaded(state: state);
         }
         if (state is TrackerFailure) {
           return ErrorStateView(
@@ -56,12 +56,14 @@ class ReposTab extends StatelessWidget {
 }
 
 class _Loaded extends StatelessWidget {
-  const _Loaded({required this.repos});
+  const _Loaded({required this.state});
 
-  final List<RepoContribution> repos;
+  final TrackerLoaded state;
 
   @override
   Widget build(BuildContext context) {
+    final repos = state.repos;
+    final streak = state.streak;
     final problem = repos.where((r) => r.hasUncountedWork).toList();
     final top = repos.isEmpty
         ? 1
@@ -70,6 +72,13 @@ class _Loaded extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (streak.isUncertain) ...[
+          StalenessBanner(
+            isError: streak.freshness == DataFreshness.error,
+            checkedAt: streak.checkedAt,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         // Repos silently eating contributions come first — this is the answer
         // to "why did my streak break", so it should not be scrolled to.
         if (problem.isNotEmpty) ...[

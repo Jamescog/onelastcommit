@@ -26,6 +26,7 @@ class StreakStatus extends Equatable {
     required this.deadlineUtc,
     required this.checkedAt,
     this.lastContributionDate,
+    this.previousStreak = 0,
     this.weekTotal = 0,
     this.monthTotal = 0,
     this.freshness = DataFreshness.fresh,
@@ -52,6 +53,15 @@ class StreakStatus extends Equatable {
 
   final DateTime checkedAt;
   final String? lastContributionDate;
+
+  /// The run that just ended, when [current] is zero.
+  ///
+  /// Without it the app cannot tell someone who just lost twenty-three days
+  /// apart from someone who installed it ten seconds ago — and PLAN.md
+  /// section 10 calls that moment either the most valuable thing here or the
+  /// reason someone uninstalls.
+  final int previousStreak;
+
   final int weekTotal;
   final int monthTotal;
   final DataFreshness freshness;
@@ -82,6 +92,7 @@ class StreakStatus extends Equatable {
     deadlineUtc,
     checkedAt,
     lastContributionDate,
+    previousStreak,
     weekTotal,
     monthTotal,
     freshness,

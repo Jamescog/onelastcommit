@@ -1,4 +1,5 @@
 import '../../../../core/github/github_client.dart';
+import '../../../../core/util/utc_date.dart';
 import '../../domain/entities/entities.dart';
 import 'tracker_data_source.dart';
 
@@ -173,7 +174,7 @@ query($from: DateTime!, $to: DateTime!) {
     final firstAt = <String, DateTime>{};
     final lastAt = <String, DateTime>{};
     for (final c in commits) {
-      final key = _dateKey(c.occurredAt);
+      final key = utcDateLabel(c.occurredAt);
       final first = firstAt[key];
       final last = lastAt[key];
       if (first == null || c.occurredAt.isBefore(first)) {
@@ -227,17 +228,10 @@ query($from: DateTime!, $to: DateTime!) {
 
       final at = DateTime.tryParse((event['created_at'] as String?) ?? '');
       if (at == null) continue;
-      final key = _dateKey(at);
+      final key = utcDateLabel(at);
       byDate[key] = (byDate[key] ?? 0) + 1;
     }
     return byDate;
-  }
-
-  static String _dateKey(DateTime at) {
-    final u = at.toUtc();
-    return '${u.year.toString().padLeft(4, '0')}-'
-        '${u.month.toString().padLeft(2, '0')}-'
-        '${u.day.toString().padLeft(2, '0')}';
   }
 
   @override

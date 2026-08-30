@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../../../core/util/reminder_scheduler.dart';
+import '../../../../core/util/utc_date.dart';
 import '../entities/entities.dart';
 import 'streak_calculator.dart';
 
@@ -135,7 +136,7 @@ class ReminderJournal {
     return ReminderEvent(
       id: idFor(at),
       sentAt: at,
-      streakAtSend: _streakBefore(days, dateLabel(at)),
+      streakAtSend: _streakBefore(days, utcDateLabel(at)),
       // The scheduled notification asserts the day is empty — that is the
       // text the user read — so the record carries the same claim unless the
       // calendar can already show it was wrong.
@@ -214,18 +215,11 @@ class ReminderJournal {
   /// a 22:00 reminder in Los Angeles is guarding the day it fires inside in
   /// UTC, not the local one.
   static ContributionDay? dayOf(List<ContributionDay> days, DateTime at) {
-    final label = dateLabel(at);
+    final label = utcDateLabel(at);
     for (final day in days) {
       if (day.date == label) return day;
     }
     return null;
-  }
-
-  static String dateLabel(DateTime at) {
-    final u = at.toUtc();
-    return '${u.year.toString().padLeft(4, '0')}-'
-        '${u.month.toString().padLeft(2, '0')}-'
-        '${u.day.toString().padLeft(2, '0')}';
   }
 
   static ReminderEvent _settle(

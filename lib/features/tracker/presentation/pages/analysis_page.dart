@@ -22,24 +22,34 @@ class AnalysisPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Analysis')),
+      // Loading, failed and genuinely-empty are three different answers.
+      // Folding them into one "come back in a week" told a user whose sync
+      // had just failed something false about their own data, with no way to
+      // retry it.
       body: BlocBuilder<TrackerBloc, TrackerState>(
         builder: (context, state) {
-          final insights = state is TrackerLoaded ? state.insights : null;
-
-          if (insights == null) {
-            return const EmptyStateView(
+          return switch (state) {
+            TrackerInitial() || TrackerLoading() => const _AnalysisSkeleton(),
+            TrackerFailure(:final message) => ErrorStateView(
+              title: 'Analysis unavailable',
+              message: message,
+              onRetry: () =>
+                  context.read<TrackerBloc>().add(const SyncTracker()),
+            ),
+            TrackerLoaded(:final insights?) => _Loaded(
+              insights: insights,
+              streak: state.streak,
+              calendar: state.calendar,
+            ),
+            _ => const EmptyStateView(
               icon: Icons.query_stats_outlined,
               title: 'Nothing to analyse yet',
               message:
                   'This page fills in as the app watches your days. '
                   'Come back after a week or so.',
               tone: AppTone.info,
-            );
-          }
-          return _Loaded(
-            insights: insights,
-            calendar: (state as TrackerLoaded).calendar,
-          );
+            ),
+          };
         },
       ),
     );
@@ -47,9 +57,14 @@ class AnalysisPage extends StatelessWidget {
 }
 
 class _Loaded extends StatelessWidget {
-  const _Loaded({required this.insights, required this.calendar});
+  const _Loaded({
+    required this.insights,
+    required this.streak,
+    required this.calendar,
+  });
 
   final OlcInsights insights;
+  final StreakStatus streak;
   final List<ContributionDay> calendar;
 
   @override
@@ -57,6 +72,13 @@ class _Loaded extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (streak.isUncertain) ...[
+          StalenessBanner(
+            isError: streak.freshness == DataFreshness.error,
+            checkedAt: streak.checkedAt,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         _Era(insights: insights),
         const SizedBox(height: AppSpacing.xxl),
         _Impact(insights: insights),
@@ -452,6 +474,25 @@ class _Trend extends StatelessWidget {
         AppCard(
           child: TrendChart(values: [for (final v in rolling) v.round()]),
         ),
+      ],
+    );
+  }
+}
+
+
+class _AnalysisSkeleton extends StatelessWidget {
+  const _AnalysisSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: const [
+        SkeletonCard(lines: 2),
+        SizedBox(height: AppSpacing.xxl),
+        SkeletonCard(lines: 1),
+        SizedBox(height: AppSpacing.xxl),
+        SkeletonCard(lines: 3),
       ],
     );
   }

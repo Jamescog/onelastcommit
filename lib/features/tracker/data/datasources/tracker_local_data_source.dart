@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/util/db_service.dart';
+import '../../../../core/util/utc_date.dart';
 import '../../domain/entities/entities.dart';
 import 'tracker_rows.dart';
 
@@ -110,11 +111,11 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
     final args = <Object?>[];
     if (from != null) {
       where.add('date >= ?');
-      args.add(_label(from));
+      args.add(utcDateLabel(from));
     }
     if (to != null) {
       where.add('date <= ?');
-      args.add(_label(to));
+      args.add(utcDateLabel(to));
     }
     final rows = await db.query(
       'contribution_days',
@@ -305,10 +306,4 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
     });
   }
 
-  static String _label(DateTime d) {
-    final u = d.toUtc();
-    return '${u.year.toString().padLeft(4, '0')}-'
-        '${u.month.toString().padLeft(2, '0')}-'
-        '${u.day.toString().padLeft(2, '0')}';
-  }
 }

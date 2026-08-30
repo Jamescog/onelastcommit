@@ -1,3 +1,4 @@
+import '../../../../core/util/utc_date.dart';
 import '../entities/entities.dart';
 
 /// Derives [StreakStatus] and [OlcInsights] from raw contribution days.
@@ -8,7 +9,15 @@ import '../entities/entities.dart';
 class StreakCalculator {
   const StreakCalculator._();
 
-  /// [days] must be oldest-first and end with today.
+  /// [days] must be oldest-first.
+  ///
+  /// Which row is *today* is decided by the clock, never by taking `days.last`
+  /// on trust. The mirror is written by a sync that may have happened before
+  /// the UTC day rolled over, and the deadline is derived from [now] either
+  /// way — so reading a count off the last row would let the app pair
+  /// yesterday's five contributions with today's countdown and report a safe
+  /// day on an empty one. PLAN section 1 calls that the one direction this app
+  /// cannot fail in.
   ///
   /// Returns null when there is nothing to compute from — a brand-new install
   /// has no streak, which is different from a streak of zero.
@@ -19,15 +28,30 @@ class StreakCalculator {
   }) {
     if (days.isEmpty) return null;
 
-    final today = days.last;
+    final todayLabel = utcDateLabel(now);
+    final last = days.last;
+    final hasToday = last.date == todayLabel;
+
+    // No row for today means nobody has looked at today yet, whatever the
+    // sync clock says. Treat it as an empty day — which nags — and refuse to
+    // call the answer fresh.
+    final todayCount = hasToday ? last.count : 0;
+    final effective = hasToday
+        ? freshness
+        : (freshness == DataFreshness.error
+              ? DataFreshness.error
+              : DataFreshness.stale);
 
     // The pending-today rule. A streak of 47 with nothing yet today is still
     // 47 and at risk — never 0. Today only joins the streak once it has a
     // contribution; until then the count runs to yesterday.
+    //
+    // The skip applies only to a genuine today row. When the last row is
+    // yesterday, a zero there is a real empty day and the streak is broken.
     var current = 0;
     for (var i = days.length - 1; i >= 0; i--) {
       final day = days[i];
-      if (i == days.length - 1 && day.count == 0) continue;
+      if (hasToday && i == days.length - 1 && day.count == 0) continue;
       if (day.count == 0) break;
       current++;
     }
@@ -39,24 +63,30 @@ class StreakCalculator {
       if (run > longest) longest = run;
     }
 
-    // A run that reaches the oldest day we hold may extend past it. GitHub
-    // caps a query at one year, so the honest answer is "at least this", and
-    // the caller stitches another year when it matters.
-    if (current >= days.length) current = days.length;
+    final lastActive = days.lastWhere((d) => d.count > 0, orElse: () => last);
 
-    final lastActive = days.lastWhere((d) => d.count > 0, orElse: () => today);
+    // The run that just ended. Only meaningful once the current one is gone —
+    // it is what turns "0 day streak" into "your 23 days ended yesterday".
+    var previous = 0;
+    if (current == 0 && lastActive.count > 0) {
+      final end = days.indexOf(lastActive);
+      for (var i = end; i >= 0 && days[i].count > 0; i--) {
+        previous++;
+      }
+    }
 
     return StreakStatus(
       current: current,
       longest: longest,
-      todayCount: today.count,
-      todayDate: today.date,
+      todayCount: todayCount,
+      todayDate: todayLabel,
       deadlineUtc: nextDeadline(now),
       checkedAt: now.toUtc(),
       lastContributionDate: lastActive.count > 0 ? lastActive.date : null,
+      previousStreak: previous,
       weekTotal: _tail(days, 7),
       monthTotal: _tail(days, 30),
-      freshness: freshness,
+      freshness: effective,
     );
   }
 
@@ -90,7 +120,7 @@ class StreakCalculator {
     final era = days;
 
     // Only what happened while the app was watching.
-    final installedLabel = _label(installedAt);
+    final installedLabel = utcDateLabel(installedAt);
     final watched = days
         .where((d) => d.date.compareTo(installedLabel) >= 0)
         .toList();
@@ -195,10 +225,4 @@ class StreakCalculator {
     ];
   }
 
-  static String _label(DateTime d) {
-    final u = d.toUtc();
-    return '${u.year.toString().padLeft(4, '0')}-'
-        '${u.month.toString().padLeft(2, '0')}-'
-        '${u.day.toString().padLeft(2, '0')}';
-  }
 }

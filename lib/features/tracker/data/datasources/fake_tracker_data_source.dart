@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../../../core/dev/dev_scenario.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/util/utc_date.dart';
 import '../../domain/entities/entities.dart';
 import 'tracker_data_source.dart';
 
@@ -63,11 +64,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
       now.day,
     ).subtract(Duration(days: daysAgo));
   }
-
-  static String _label(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
-      '${d.month.toString().padLeft(2, '0')}-'
-      '${d.day.toString().padLeft(2, '0')}';
 
   static int _levelFor(int count) {
     if (count == 0) return 0;
@@ -131,7 +127,7 @@ class FakeTrackerDataSource implements TrackerDataSource {
 
       days.add(
         ContributionDay(
-          date: _label(date),
+          date: utcDateLabel(date),
           count: count,
           level: _levelFor(count),
           firstContributionAt: count == 0

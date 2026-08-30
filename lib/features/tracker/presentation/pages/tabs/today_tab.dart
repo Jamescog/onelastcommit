@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_tokens.dart';
+import '../../../../../core/util/utc_date.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../bloc/tracker_bloc.dart';
@@ -45,7 +46,13 @@ class _Loaded extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final streak = state.streak;
-    final today = state.activity.where((a) => _isToday(a.occurredAt)).toList();
+    // Filtered against the UTC day GitHub is counting, not the local one. At
+    // UTC+13 a 09:00 commit belongs to yesterday's contribution day, and
+    // listing it under a header that says "nothing counted yet" makes the
+    // screen contradict itself — PLAN.md section 2's trap, on one card.
+    final today = state.activity
+        .where((a) => utcDateLabel(a.occurredAt) == streak.todayDate)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: () async =>
@@ -54,7 +61,10 @@ class _Loaded extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           if (streak.isUncertain) ...[
-            _StalenessBanner(freshness: streak.freshness),
+            StalenessBanner(
+              isError: streak.freshness == DataFreshness.error,
+              checkedAt: streak.checkedAt,
+            ),
             const SizedBox(height: AppSpacing.md),
           ],
           _StatusCard(streak: streak),
@@ -64,12 +74,13 @@ class _Loaded extends StatelessWidget {
           SectionHeader(
             title: "Today's activity",
             subtitle: today.isEmpty
-                ? null
-                : '${today.length} ${today.length == 1 ? "entry" : "entries"}',
+                ? 'The UTC day GitHub is counting'
+                : '${today.length} ${today.length == 1 ? "entry" : "entries"} '
+                      '· the UTC day GitHub is counting',
           ),
           const SizedBox(height: AppSpacing.md),
           if (today.isEmpty)
-            _NothingYet(atRisk: streak.atRisk)
+            _NothingYet(safe: streak.isSafeToday)
           else
             ...today.map(
               (a) => Padding(
@@ -81,14 +92,6 @@ class _Loaded extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static bool _isToday(DateTime at) {
-    final now = DateTime.now();
-    final local = at.toLocal();
-    return local.year == now.year &&
-        local.month == now.month &&
-        local.day == now.day;
   }
 }
 
@@ -105,8 +108,35 @@ class _StatusCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final safe = streak.isSafeToday;
 
+    // Three answers, not two. A streak of zero means one of two entirely
+    // different things — you just lost a run, or you have not started one —
+    // and rendering both as "0 day streak" tells someone who just broke
+    // twenty-three days exactly what it tells a fresh install.
+    final broken = !safe && streak.current == 0 && streak.previousStreak > 0;
+    final brandNew =
+        !safe && streak.current == 0 && streak.lastContributionDate == null;
+
+    final headline = switch (true) {
+      _ when safe => 'Safe today',
+      _ when broken => streak.previousStreak == 1
+          ? 'Your streak ended'
+          : 'Your ${streak.previousStreak}-day streak ended',
+      _ when brandNew => 'No streak yet',
+      _ => 'Nothing counted yet',
+    };
+
+    // Uncertainty is on the headline too, not only in the banner above it. A
+    // confident green "Safe today" under a warning that we could not check is
+    // the app arguing with itself.
+    final hedged = streak.isUncertain
+        ? (safe ? 'Safe as of the last check' : headline)
+        : headline;
+
+    final tone = safe ? AppTone.success : AppTone.danger;
+    final fg = safe ? t.success : t.danger;
+
     return AppCard(
-      tone: safe ? AppTone.success : AppTone.danger,
+      tone: tone,
       accentEdge: true,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
@@ -116,14 +146,14 @@ class _StatusCard extends StatelessWidget {
             children: [
               Icon(
                 safe ? Icons.check_circle_outline : Icons.error_outline,
-                color: safe ? t.success : t.danger,
+                color: fg,
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                safe ? 'Safe today' : 'Nothing counted yet',
-                style: text.titleMedium?.copyWith(
-                  color: safe ? t.success : t.danger,
+              Flexible(
+                child: Text(
+                  hedged,
+                  style: text.titleMedium?.copyWith(color: fg),
                 ),
               ),
             ],
@@ -137,19 +167,35 @@ class _StatusCard extends StatelessWidget {
                 style: text.displayLarge?.copyWith(color: t.textPrimary),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Text(
-                  streak.current == 1 ? 'day streak' : 'day streak',
-                  style: text.bodyMedium?.copyWith(color: t.textSecondary),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    streak.current == 1 ? 'day' : 'days',
+                    style: text.bodyMedium?.copyWith(color: t.textSecondary),
+                  ),
                 ),
               ),
             ],
           ),
+          if (broken || brandNew) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              broken
+                  ? 'Day one starts with anything you push today.'
+                  : 'Your first day starts with anything you push today.',
+              style: text.bodySmall?.copyWith(color: t.textSecondary),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           // A countdown rather than a wall-clock time: the deadline is UTC
           // midnight, which is not midnight anywhere most people live.
-          CountdownText(deadlineUtc: streak.deadlineUtc, safe: safe),
+          CountdownText(
+            deadlineUtc: streak.deadlineUtc,
+            safe: safe,
+            onRollover: () =>
+                context.read<TrackerBloc>().add(const SyncTracker()),
+          ),
         ],
       ),
     );
@@ -187,51 +233,15 @@ class _QuickStats extends StatelessWidget {
   }
 }
 
-/// Shown when the mirror cannot be vouched for.
-///
-/// It hedges rather than hides. Staying silent risks telling someone their
-/// streak is safe when it may not be, and that is the failure this app cannot
-/// afford. See PLAN.md section 1.
-class _StalenessBanner extends StatelessWidget {
-  const _StalenessBanner({required this.freshness});
-
-  final DataFreshness freshness;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final isError = freshness == DataFreshness.error;
-
-    return AppCard(
-      tone: AppTone.warning,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_off_outlined, size: 16, color: t.warning),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              isError
-                  ? "Can't reach GitHub. This may have changed."
-                  : "Showing what we last knew. Couldn't check just now.",
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: t.warning),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _NothingYet extends StatelessWidget {
-  const _NothingYet({required this.atRisk});
+  const _NothingYet({required this.safe});
 
-  final bool atRisk;
+  /// Today already counted, but nothing shows in the feed.
+  ///
+  /// That combination is normal rather than contradictory — private repos
+  /// never reach the events feed — so it needs its own wording. "Safe today"
+  /// above "No activity recorded" reads as a bug.
+  final bool safe;
 
   @override
   Widget build(BuildContext context) {
@@ -246,14 +256,18 @@ class _NothingYet extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            atRisk ? 'Nothing counted yet today' : 'No activity recorded',
+            safe ? 'Counted, but nothing to show' : 'Nothing counted yet today',
             style: Theme.of(context).textTheme.titleSmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Pushing to a default branch, opening an issue, or reviewing a '
-            'pull request all count.',
+            safe
+                ? 'Today counted on GitHub. Work in private repositories '
+                      'never reaches the public activity feed, so there is '
+                      'nothing to list here.'
+                : 'Pushing to a default branch, opening an issue, or '
+                      'reviewing a pull request all count.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: context.tokens.textSecondary,
             ),

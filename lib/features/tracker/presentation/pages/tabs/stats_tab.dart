@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_tokens.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../domain/entities/entities.dart';
 import '../../bloc/tracker_bloc.dart';
 import '../../widgets/contribution_heatmap.dart';
 import '../../widgets/trend_chart.dart';
@@ -53,6 +54,13 @@ class _Loaded extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
+        if (streak.isUncertain) ...[
+          StalenessBanner(
+            isError: streak.freshness == DataFreshness.error,
+            checkedAt: streak.checkedAt,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         // A headline number is not a chart. Three of them beat a bar chart of
         // three bars.
         AppCard(
