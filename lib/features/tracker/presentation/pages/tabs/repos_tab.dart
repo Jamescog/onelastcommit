@@ -154,7 +154,7 @@ class _RepoCard extends StatelessWidget {
               minHeight: 4,
               backgroundColor: t.surfaceSubtle,
               valueColor: AlwaysStoppedAnimation(
-                highlight ? t.warning : t.accent,
+                highlight ? t.warning : t.success,
               ),
             ),
           ),

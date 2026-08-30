@@ -38,7 +38,7 @@ class _HomePageState extends State<HomePage>
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
-            expandedHeight: 208,
+            expandedHeight: 184,
             pinned: true,
             backgroundColor: t.ground,
             flexibleSpace: const FlexibleSpaceBar(
@@ -52,12 +52,16 @@ class _HomePageState extends State<HomePage>
               BlocBuilder<TrackerBloc, TrackerState>(
                 buildWhen: (a, b) => _syncing(a) != _syncing(b),
                 builder: (context, state) => _syncing(state)
-                    ? const Padding(
-                        padding: EdgeInsets.all(AppSpacing.lg),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                    ? Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Semantics(
+                          label: 'Checking GitHub',
+                          liveRegion: true,
+                          child: const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
                       )
                     : const SizedBox.shrink(),
@@ -113,11 +117,29 @@ class _ProfileHeader extends StatelessWidget {
         final profile = state is TrackerLoaded ? state.profile : null;
 
         return Container(
+          // The logo's gradient, at the one place in the app that is pure
+          // chrome. It is the only surface allowed to carry these hues: the
+          // warm end of the logo sits on top of warning and danger, so
+          // anywhere it could be read as a status it would be lying.
           decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                t.brandGradient[0].withValues(alpha: 0.22),
+                t.brandGradient[1].withValues(alpha: 0.16),
+                t.brandGradient[2].withValues(alpha: 0.20),
+              ],
+            ),
+          ),
+          foregroundDecoration: BoxDecoration(
+            // Fade into the ground so the header meets the tab bar without a
+            // seam.
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [t.accentSubtle, t.ground],
+              colors: [t.ground.withValues(alpha: 0), t.ground],
+              stops: const [0.55, 1],
             ),
           ),
           padding: const EdgeInsets.fromLTRB(

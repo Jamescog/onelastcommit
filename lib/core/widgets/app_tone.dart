@@ -5,9 +5,15 @@ import '../theme/app_tokens.dart';
 /// The semantic weight of a piece of UI.
 ///
 /// Components take a tone rather than colours, so the mapping from meaning to
-/// palette lives in exactly one place. [danger] is reserved for the at-risk and
-/// streak-broken states — it is never decoration.
-enum AppTone { neutral, accent, info, warning, danger }
+/// palette lives in exactly one place.
+///
+/// [accent] means "interactive" — it is the app's blue, and it says nothing
+/// about the streak. [success] means the streak is alive. Keeping those apart
+/// is the whole point of the split: a primary button and a safe day are not
+/// the same claim, and before the logo retheme they shared a colour.
+/// [danger] is reserved for the at-risk and streak-broken states — it is never
+/// decoration.
+enum AppTone { neutral, accent, success, info, warning, danger }
 
 /// The three colours a toned surface needs, resolved for the active theme.
 @immutable
@@ -36,6 +42,11 @@ extension AppToneResolver on AppTone {
         foreground: t.accent,
         background: t.accentSubtle,
         border: t.accent.withValues(alpha: 0.35),
+      ),
+      AppTone.success => ToneColors(
+        foreground: t.success,
+        background: t.successSubtle,
+        border: t.success.withValues(alpha: 0.35),
       ),
       AppTone.info => ToneColors(
         foreground: t.info,

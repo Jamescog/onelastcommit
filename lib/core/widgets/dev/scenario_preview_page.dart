@@ -181,13 +181,13 @@ class _Summary extends StatelessWidget {
               StatTile(
                 value: '$streak',
                 label: 'Trailing streak',
-                tone: streak > 0 ? AppTone.accent : AppTone.danger,
+                tone: streak > 0 ? AppTone.success : AppTone.danger,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
                 value: '$today',
                 label: 'Today',
-                tone: today > 0 ? AppTone.accent : AppTone.danger,
+                tone: today > 0 ? AppTone.success : AppTone.danger,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
@@ -400,7 +400,7 @@ class _ReminderSummary extends StatelessWidget {
               StatTile(
                 value: '${saved.length}',
                 label: 'Saves',
-                tone: AppTone.accent,
+                tone: AppTone.success,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(

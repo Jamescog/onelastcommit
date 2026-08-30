@@ -71,8 +71,8 @@ class HistogramChart extends StatelessWidget {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: highlightPeak && i == peak
-                                ? t.accent
-                                : t.accent.withValues(alpha: 0.35),
+                                ? t.success
+                                : t.success.withValues(alpha: 0.35),
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(4),
                             ),

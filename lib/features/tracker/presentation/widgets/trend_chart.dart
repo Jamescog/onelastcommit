@@ -25,10 +25,10 @@ class TrendChart extends StatelessWidget {
       child: CustomPaint(
         painter: _TrendPainter(
           values: values,
-          line: t.accent,
-          fill: t.accent.withValues(alpha: 0.14),
+          line: t.success,
+          fill: t.success.withValues(alpha: 0.14),
           grid: t.border,
-          endpoint: t.accent,
+          endpoint: t.success,
           endpointRing: t.surface,
         ),
       ),

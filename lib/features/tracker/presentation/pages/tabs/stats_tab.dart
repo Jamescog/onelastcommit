@@ -61,7 +61,7 @@ class _Loaded extends StatelessWidget {
               StatTile(
                 value: '${streak.current}',
                 label: 'Current streak',
-                tone: streak.current > 0 ? AppTone.accent : AppTone.danger,
+                tone: streak.current > 0 ? AppTone.success : AppTone.danger,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
@@ -85,7 +85,11 @@ class _Loaded extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
-          child: ContributionHeatmap(days: days, atRiskToday: streak.atRisk),
+          child: ContributionHeatmap(
+            days: days,
+            todayDate: streak.todayDate,
+            atRiskToday: streak.atRisk,
+          ),
         ),
         const SizedBox(height: AppSpacing.xxl),
 

@@ -106,7 +106,7 @@ class _StatusCard extends StatelessWidget {
     final safe = streak.isSafeToday;
 
     return AppCard(
-      tone: safe ? AppTone.accent : AppTone.danger,
+      tone: safe ? AppTone.success : AppTone.danger,
       accentEdge: true,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
@@ -116,14 +116,14 @@ class _StatusCard extends StatelessWidget {
             children: [
               Icon(
                 safe ? Icons.check_circle_outline : Icons.error_outline,
-                color: safe ? t.accent : t.danger,
+                color: safe ? t.success : t.danger,
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 safe ? 'Safe today' : 'Nothing counted yet',
                 style: text.titleMedium?.copyWith(
-                  color: safe ? t.accent : t.danger,
+                  color: safe ? t.success : t.danger,
                 ),
               ),
             ],

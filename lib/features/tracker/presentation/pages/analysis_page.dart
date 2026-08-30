@@ -100,7 +100,7 @@ class _Era extends StatelessWidget {
               StatTile(
                 value: '${i.daysWithContributions}',
                 label: 'Active days',
-                tone: AppTone.accent,
+                tone: AppTone.success,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
@@ -143,7 +143,7 @@ class _Impact extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
-          tone: i.saves > 0 ? AppTone.accent : null,
+          tone: i.saves > 0 ? AppTone.success : null,
           accentEdge: i.saves > 0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +153,9 @@ class _Impact extends StatelessWidget {
                 label: i.remindersSent == 0
                     ? 'no reminders sent yet'
                     : (i.saves == 1 ? 'streak saved' : 'streaks saved'),
-                tone: i.remindersSent == 0 ? AppTone.neutral : AppTone.accent,
+                tone: i.remindersSent == 0
+                    ? AppTone.neutral
+                    : AppTone.success,
                 emphasis: StatEmphasis.hero,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -349,7 +351,7 @@ class _Bar extends StatelessWidget {
             value: share,
             minHeight: 4,
             backgroundColor: t.surfaceSubtle,
-            valueColor: AlwaysStoppedAnimation(t.accent),
+            valueColor: AlwaysStoppedAnimation(t.success),
           ),
         ),
       ],
@@ -374,10 +376,10 @@ class _History extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         if (breaks.isEmpty)
           AppCard(
-            tone: AppTone.accent,
+            tone: AppTone.success,
             child: Row(
               children: [
-                Icon(Icons.verified_outlined, size: 18, color: t.accent),
+                Icon(Icons.verified_outlined, size: 18, color: t.success),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -415,7 +417,9 @@ class _History extends StatelessWidget {
                     ),
                     AppPill(
                       label: b.hasRecovered ? 'Recovered' : 'Open',
-                      tone: b.hasRecovered ? AppTone.accent : AppTone.danger,
+                      tone: b.hasRecovered
+                          ? AppTone.success
+                          : AppTone.danger,
                     ),
                   ],
                 ),

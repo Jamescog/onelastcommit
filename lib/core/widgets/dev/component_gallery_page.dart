@@ -139,9 +139,13 @@ class _CardsDemo extends StatelessWidget {
           child: const Text('At risk — 3h left on your 47-day streak.'),
         ),
         AppCard(
-          tone: AppTone.accent,
+          tone: AppTone.success,
           accentEdge: true,
           child: const Text('Streak saved. 48 days.'),
+        ),
+        AppCard(
+          tone: AppTone.accent,
+          child: const Text('Interactive, not a status. Accent is the blue.'),
         ),
         AppCard(
           tone: AppTone.warning,
@@ -193,7 +197,7 @@ class _StatsDemo extends StatelessWidget {
             value: '47',
             label: 'Day streak',
             emphasis: StatEmphasis.hero,
-            tone: AppTone.accent,
+            tone: AppTone.success,
           ),
         ),
         const AppCard(
@@ -212,7 +216,7 @@ class _StatsDemo extends StatelessWidget {
                 value: '18',
                 label: 'Saves',
                 icon: Icons.shield_outlined,
-                tone: AppTone.accent,
+                tone: AppTone.success,
                 emphasis: StatEmphasis.compact,
               ),
               StatTile(
@@ -239,12 +243,12 @@ class _PillsDemo extends StatelessWidget {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        AppPill(label: 'Counted', tone: AppTone.accent, icon: Icons.check),
+        AppPill(label: 'Counted', tone: AppTone.success, icon: Icons.check),
         AppPill(label: 'At risk', tone: AppTone.danger, icon: Icons.warning),
         AppPill(label: 'Stale', tone: AppTone.warning, icon: Icons.schedule),
         AppPill(label: 'Public', tone: AppTone.info),
         AppPill(label: 'main'),
-        AppPill(label: 'Outlined', tone: AppTone.accent, filled: false),
+        AppPill(label: 'Selected', tone: AppTone.accent, filled: false),
       ],
     );
   }

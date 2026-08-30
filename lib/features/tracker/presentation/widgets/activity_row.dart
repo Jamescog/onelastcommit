@@ -62,7 +62,7 @@ class ActivityRow extends StatelessWidget {
                       if (activity.additions != null)
                         Text(
                           '+${activity.additions}',
-                          style: text.bodySmall?.copyWith(color: t.accent),
+                          style: text.bodySmall?.copyWith(color: t.success),
                         ),
                       if (activity.deletions != null) ...[
                         const SizedBox(width: AppSpacing.sm),
