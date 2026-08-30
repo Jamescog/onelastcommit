@@ -76,6 +76,21 @@ void main() {
         }
       });
 
+      test('a proportion bar keeps its track on a card', () {
+        // The unfilled remainder is the bar's scale. Drawn in surfaceSubtle
+        // it measured 1.07:1 on the light card and 1.05:1 on the dark one,
+        // so a repo with a small share had nothing to be small against.
+        expect(_contrast(t.border, t.surface), greaterThanOrEqualTo(1.25));
+        // And the fill still has to separate from the track it sits on.
+        for (final fill in {'success': t.success, 'warning': t.warning}.entries) {
+          expect(
+            _contrast(fill.value, t.border),
+            greaterThanOrEqualTo(2.5),
+            reason: '${fill.key} fill on the bar track',
+          );
+        }
+      });
+
       test('a card is separable from the page behind it', () {
         final fill = _contrast(t.surface, t.ground);
         final edge = _contrast(t.border, t.ground);

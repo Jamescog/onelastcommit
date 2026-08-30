@@ -41,12 +41,34 @@ class ProportionBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: SizedBox(
             height: height,
+            width: double.infinity,
             child: Stack(
               children: [
-                Positioned.fill(child: ColoredBox(color: t.surfaceSubtle)),
-                FractionallySizedBox(
-                  widthFactor: share,
-                  child: ColoredBox(color: color ?? t.success),
+                // The track is the card's own border colour, not
+                // [surfaceSubtle]. A bar lives inside an AppCard, and
+                // surfaceSubtle measures 1.07:1 against the light card and
+                // 1.05:1 against the dark one — the same way the heatmap's
+                // empty cell used to vanish. The unfilled remainder is the
+                // bar's scale, so it has to survive being drawn on a surface.
+                Positioned.fill(child: ColoredBox(color: t.border)),
+
+                // Both layers are positioned, and both for the same reason:
+                // a Stack hands its *un*positioned children loose
+                // constraints, so the fill's ColoredBox took
+                // `constraints.smallest` — zero height — and painted
+                // nothing at all. Every bar in the app was drawing its track
+                // and no fill. Positioned.fill is what makes the height
+                // tight.
+                //
+                // centerStart, because FractionallySizedBox otherwise
+                // centres the fraction: a 20% bar would have floated in the
+                // middle of the track with a gap on either side.
+                Positioned.fill(
+                  child: FractionallySizedBox(
+                    alignment: AlignmentDirectional.centerStart,
+                    widthFactor: share,
+                    child: ColoredBox(color: color ?? t.success),
+                  ),
                 ),
               ],
             ),
