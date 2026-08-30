@@ -40,10 +40,17 @@ class SettingsInitial extends SettingsState {}
 class SettingsLoading extends SettingsState {}
 
 class SettingsLoaded extends SettingsState {
+  SettingsLoaded(this.settings, {this.schedule});
+
   final AppSettings settings;
-  SettingsLoaded(this.settings);
+
+  /// What the OS actually accepted, once reminders have been re-registered.
+  /// Null before the first attempt. The UI reads it so a time the scheduler
+  /// refused is visible rather than silently missing.
+  final ScheduleOutcome? schedule;
+
   @override
-  List<Object?> get props => [settings];
+  List<Object?> get props => [settings, schedule?.scheduled, schedule?.dropped];
 }
 
 /// Settings could not be read.
@@ -87,24 +94,36 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       emit(SettingsLoaded(settings));
       // Re-asserted on every load: scheduling is idempotent, and permissions
       // may have changed since the schedules were last written.
-      await _reschedule(settings);
+      emit(SettingsLoaded(settings, schedule: await _reschedule(settings)));
     });
 
     on<UpdateSettings>((event, emit) async {
       final previous = state;
       await repository.saveSettings(event.settings);
-      emit(SettingsLoaded(event.settings));
       // Theme and account edits should not churn the OS alarm table.
       if (previous is SettingsLoaded &&
           !_affectsSchedule(previous.settings, event.settings)) {
+        emit(SettingsLoaded(event.settings, schedule: previous.schedule));
         return;
       }
-      await _reschedule(event.settings);
+      emit(SettingsLoaded(event.settings));
+      emit(
+        SettingsLoaded(
+          event.settings,
+          schedule: await _reschedule(event.settings),
+        ),
+      );
     });
 
     on<ReapplyReminders>((event, emit) async {
       final current = state;
-      if (current is SettingsLoaded) await _reschedule(current.settings);
+      if (current is! SettingsLoaded) return;
+      emit(
+        SettingsLoaded(
+          current.settings,
+          schedule: await _reschedule(current.settings),
+        ),
+      );
     });
 
     on<SignOut>((event, emit) async {
@@ -129,7 +148,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       a.timezone != b.timezone ||
       !listEquals(a.reminderTimes, b.reminderTimes);
 
-  Future<void> _reschedule(AppSettings settings) => scheduler.apply(
+  Future<ScheduleOutcome> _reschedule(AppSettings settings) => scheduler.apply(
     enabled: settings.remindersEnabled,
     times: settings.reminderTimes,
     timezone: settings.timezone,

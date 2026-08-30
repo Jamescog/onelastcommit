@@ -214,12 +214,12 @@ class _StubScheduler extends ReminderScheduler {
   _StubScheduler() : super(notifications: NotificationService());
 
   @override
-  Future<void> apply({
+  Future<ScheduleOutcome> apply({
     required bool enabled,
     required List<String> times,
     required String timezone,
     required bool includeWeekends,
-  }) async {}
+  }) async => ScheduleOutcome(scheduled: times, dropped: const []);
 }
 
 class _StubSettings implements SettingsRepository {
