@@ -98,7 +98,6 @@ class OlcInsights extends Equatable {
     required this.rollingWeekAverage,
     this.closestCall,
     this.medianResponseTime,
-    this.uncountedPushes = 0,
     this.breaks = const [],
     this.longestStreakInEra = 0,
   });
@@ -128,13 +127,6 @@ class OlcInsights extends Equatable {
 
   // --- Composition ---
   final Map<ContributionType, int> composition;
-
-  /// Public pushes in the era that went to a branch their repository does not
-  /// count. A floor, not a total — and never a numerator: it was once divided
-  /// by the calendar's contribution count, which includes issues, reviews and
-  /// private work the feed cannot see, and the quotient was rendered as
-  /// "N% of your pushes earned no square".
-  final int uncountedPushes;
 
   // --- Rhythm ---
   /// 24 buckets, local time, index 0 = midnight.
@@ -174,7 +166,6 @@ class OlcInsights extends Equatable {
     closestCall,
     medianResponseTime,
     composition,
-    uncountedPushes,
     hourHistogram,
     weekdayHistogram,
     breaks,

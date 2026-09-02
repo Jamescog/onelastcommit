@@ -13,8 +13,9 @@ class DatabaseService {
   static Database? _database;
 
   /// v1 stored push events. v2 stores contributions — a different question
-  /// with a different answer. See PLAN.md section 1.
-  static const _version = 3;
+  /// with a different answer. See PLAN.md section 1. v4 dropped the
+  /// uncounted-push columns along with the feature.
+  static const _version = 4;
 
   Future<Database> get database async {
     return _database ??= await _initDB('olc.db');
@@ -38,6 +39,22 @@ class DatabaseService {
   }
 
   Future<void> _upgrade(Database db, int from, int to) async {
+    if (from == 3) {
+      // The mirror tables lost columns. SQLite's DROP COLUMN needs 3.35,
+      // which older Android does not ship, and the mirror is refetched
+      // anyway — so drop and recreate. reminder_events and the outbox were
+      // written by this device and are left alone.
+      for (final table in const [
+        'contribution_days',
+        'contribution_activity',
+        'repo_activity',
+      ]) {
+        await db.execute('DROP TABLE IF EXISTS $table');
+      }
+      await db.delete('sync_state');
+      await _createSchema(db);
+      return;
+    }
     if (from < 3 && from >= 2) {
       // Commit history carries diff stats the events feed never did.
       for (final column in const [
@@ -68,8 +85,6 @@ class DatabaseService {
         level INTEGER NOT NULL,
         first_contribution_at TEXT,
         last_contribution_at TEXT,
-        counted_pushes INTEGER NOT NULL DEFAULT 0,
-        uncounted_pushes INTEGER NOT NULL DEFAULT 0,
         sealed INTEGER NOT NULL DEFAULT 0,
         taken_at TEXT NOT NULL,
         synced_at TEXT
@@ -84,8 +99,6 @@ class DatabaseService {
         occurred_at TEXT NOT NULL,
         count INTEGER NOT NULL DEFAULT 1,
         title TEXT,
-        counted INTEGER NOT NULL DEFAULT 1,
-        branch TEXT,
         is_private INTEGER NOT NULL DEFAULT 0,
         sha TEXT,
         additions INTEGER,
@@ -101,7 +114,6 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS repo_activity (
         repo_name TEXT PRIMARY KEY,
         contribution_count INTEGER NOT NULL DEFAULT 0,
-        uncounted_pushes INTEGER NOT NULL DEFAULT 0,
         last_activity_at TEXT NOT NULL,
         is_private INTEGER NOT NULL DEFAULT 0,
         is_fork INTEGER NOT NULL DEFAULT 0,

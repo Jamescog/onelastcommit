@@ -5,11 +5,7 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/entities.dart';
 
-/// One contribution in a list.
-///
-/// When something did not count, the row says so and names the branch. That
-/// is the explanation for a streak that broke on a day full of work, and it is
-/// the one thing no other GitHub client will tell you.
+/// One contribution in a list: what it was, where, and when.
 class ActivityRow extends StatelessWidget {
   const ActivityRow({required this.activity, super.key});
 
@@ -22,7 +18,6 @@ class ActivityRow extends StatelessWidget {
 
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.md),
-      tone: activity.counted ? null : AppTone.warning,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -89,16 +84,6 @@ class ActivityRow extends StatelessWidget {
                   AppPill(
                     label: '${activity.count} commits',
                     icon: Icons.commit,
-                  ),
-                ],
-                if (!activity.counted) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  AppPill(
-                    label: activity.branch == null
-                        ? "Didn't count"
-                        : "Didn't count · ${activity.branch}",
-                    tone: AppTone.warning,
-                    icon: Icons.block,
                   ),
                 ],
               ],

@@ -27,6 +27,11 @@ class GitHubTrackerDataSource implements TrackerDataSource {
   /// several.
   static const maxWindow = Duration(days: 364);
 
+  /// How far back the repository list reaches. Two stitched year windows:
+  /// `commitContributionsByRepository` only returns repositories with commits
+  /// inside the window, and one year of that read as "the app stops at ten".
+  static const repoWindow = Duration(days: 728);
+
   /// How many repositories to pull commit history for.
   ///
   /// One query per repository, so this bounds sync cost. Against a 5,000/hour
@@ -73,7 +78,7 @@ query($from: DateTime!, $to: DateTime!) {
         totalContributions
         weeks { contributionDays { date contributionCount contributionLevel } }
       }
-      commitContributionsByRepository(maxRepositories: 25) {
+      commitContributionsByRepository(maxRepositories: 100) {
         repository {
           nameWithOwner isPrivate isFork pushedAt
           primaryLanguage { name }
@@ -124,19 +129,14 @@ query($from: DateTime!, $to: DateTime!) {
     final end = to ?? DateTime.now().toUtc();
     final start = from ?? end.subtract(maxWindow);
 
-    // Stitch successive one-year windows. Days are keyed by date so an overlap
-    // at a boundary resolves to one entry rather than a duplicate.
+    // Days are keyed by date so an overlap at a window boundary resolves to
+    // one entry rather than a duplicate.
     final byDate = <String, ContributionDay>{};
-    var cursor = start;
-    while (cursor.isBefore(end)) {
-      final chunkEnd = cursor.add(maxWindow).isAfter(end)
-          ? end
-          : cursor.add(maxWindow);
-      final viewer = await _fetch(from: cursor, to: chunkEnd);
+    for (final window in _windows(start, end)) {
+      final viewer = await _fetch(from: window.from, to: window.to);
       for (final day in parseCalendar(viewer)) {
         byDate[day.date] = day;
       }
-      cursor = chunkEnd.add(const Duration(days: 1));
     }
 
     final days = byDate.values.toList()
@@ -145,9 +145,24 @@ query($from: DateTime!, $to: DateTime!) {
     return _enrichRecent(days);
   }
 
-  /// Adds wall-clock times and uncounted pushes to the most recent days.
+  /// Splits a span into successive windows no longer than the API allows.
+  static Iterable<({DateTime from, DateTime to})> _windows(
+    DateTime start,
+    DateTime end,
+  ) sync* {
+    var cursor = start;
+    while (cursor.isBefore(end)) {
+      final chunkEnd = cursor.add(maxWindow).isAfter(end)
+          ? end
+          : cursor.add(maxWindow);
+      yield (from: cursor, to: chunkEnd);
+      cursor = chunkEnd.add(const Duration(days: 1));
+    }
+  }
+
+  /// Adds wall-clock times to the most recent days.
   ///
-  /// The calendar carries neither. Times come from commit history — the events
+  /// The calendar carries none. Times come from commit history — the events
   /// feed's PushEvent payload no longer carries commits at all — and only the
   /// recent window is enriched, because a query per repository is not worth
   /// spending on a year of history nobody scrolls to.
@@ -160,15 +175,9 @@ query($from: DateTime!, $to: DateTime!) {
     final since = now.subtract(const Duration(days: 30));
 
     final List<ContributionActivity> commits;
-    final Map<String, int> uncounted;
     try {
       final viewer = await _fetch(from: since, to: now);
-      final history = await _commitActivity(viewer, since);
-      commits = history.commits;
-      uncounted = (await _uncountedPushes(
-        viewer['login'] as String,
-        history.branches,
-      )).byDate;
+      commits = await _commitActivity(viewer, since);
     } catch (_) {
       // Enrichment is a bonus. Losing it must not lose the calendar, which is
       // the only thing the streak actually depends on.
@@ -191,64 +200,17 @@ query($from: DateTime!, $to: DateTime!) {
 
     return [
       for (final day in days)
-        if (firstAt.containsKey(day.date) || uncounted.containsKey(day.date))
+        if (firstAt.containsKey(day.date))
           ContributionDay(
             date: day.date,
             count: day.count,
             level: day.level,
             firstContributionAt: firstAt[day.date],
             lastContributionAt: lastAt[day.date],
-            uncountedPushes: uncounted[day.date] ?? 0,
           )
         else
           day,
     ];
-  }
-
-  /// Pushes seen in the public feed that went somewhere GitHub does not count.
-  ///
-  /// Deliberately incomplete, and deliberately narrow. GitHub trimmed the
-  /// PushEvent payload to refs and ids, and the public feed omits private
-  /// work entirely — on the account this was built against it held 4 events
-  /// for a day the calendar scored 19. What survives is the branch name.
-  ///
-  /// A push is only classified when [branches] holds the repository's real
-  /// default branch. Assuming main/master reported every push in a repository
-  /// that defaults to develop or trunk as wasted work, which is the opposite
-  /// of a diagnostic. An unknown repository is skipped rather than guessed at.
-  ///
-  /// The UI must present this as recent public pushes, never as a share of
-  /// anything: the denominator does not exist.
-  Future<({Map<String, int> byDate, Map<String, int> byRepo})> _uncountedPushes(
-    String login,
-    Map<String, String> branches,
-  ) async {
-    final events = await client.getList('/users/$login/events?per_page=100');
-    if (events == null) {
-      return (byDate: <String, int>{}, byRepo: <String, int>{});
-    }
-
-    final byDate = <String, int>{};
-    final byRepo = <String, int>{};
-    for (final event in events) {
-      if (event is! Map<String, dynamic>) continue;
-      if (event['type'] != 'PushEvent') continue;
-
-      final repoName = (event['repo'] as Map<String, dynamic>?)?['name'];
-      if (repoName is! String) continue;
-      final defaultBranch = branches[repoName];
-      if (defaultBranch == null) continue;
-
-      final ref = (event['payload'] as Map<String, dynamic>?)?['ref'];
-      if (ref is! String) continue;
-      if (ref.split('/').last == defaultBranch) continue;
-
-      final at = DateTime.tryParse((event['created_at'] as String?) ?? '');
-      if (at == null) continue;
-      byDate[utcDateLabel(at)] = (byDate[utcDateLabel(at)] ?? 0) + 1;
-      byRepo[repoName] = (byRepo[repoName] ?? 0) + 1;
-    }
-    return (byDate: byDate, byRepo: byRepo);
   }
 
   @override
@@ -263,23 +225,20 @@ query($from: DateTime!, $to: DateTime!) {
     // refs and ids — so history is the only source for what was actually
     // written.
     final items = parseActivity(viewer)
-      ..addAll((await _commitActivity(viewer, since)).commits);
+      ..addAll(await _commitActivity(viewer, since));
 
     items.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     return items.length <= limit ? items : items.sublist(0, limit);
   }
 
   /// Commit history for the repositories with the most contributions.
-  ///
-  /// Also returns each repository's real default branch, which is the only
-  /// way to say whether a push counted. It is already in the response, and it
-  /// is the difference between a diagnostic and a guess.
-  Future<({List<ContributionActivity> commits, Map<String, String> branches})>
-  _commitActivity(Map<String, dynamic> viewer, DateTime since) async {
+  Future<List<ContributionActivity>> _commitActivity(
+    Map<String, dynamic> viewer,
+    DateTime since,
+  ) async {
     final login = viewer['login'] as String;
     final repos = parseRepos(viewer).take(historyRepoLimit);
     final commits = <ContributionActivity>[];
-    final branches = <String, String>{};
 
     for (final repo in repos) {
       final parts = repo.name.split('/');
@@ -294,24 +253,13 @@ query($from: DateTime!, $to: DateTime!) {
           },
         );
         commits.addAll(parseHistory(data, login: login));
-        final branch = defaultBranchOf(data);
-        if (branch != null) branches[repo.name] = branch;
       } catch (_) {
         // One unreadable repository must not lose the others. A repo can
         // vanish or lose access between the two queries.
         continue;
       }
     }
-    return (commits: commits, branches: branches);
-  }
-
-  /// The default branch named in a repository history response.
-  static String? defaultBranchOf(Map<String, dynamic> data) {
-    final repo = data['repository'];
-    if (repo is! Map<String, dynamic>) return null;
-    final branch = repo['defaultBranchRef'];
-    if (branch is! Map<String, dynamic>) return null;
-    return branch['name'] as String?;
+    return commits;
   }
 
   /// Commits authored by [login] on a repository's default branch.
@@ -365,27 +313,35 @@ query($from: DateTime!, $to: DateTime!) {
   @override
   Future<List<RepoContribution>> getRepos() async {
     final now = DateTime.now().toUtc();
-    final since = now.subtract(const Duration(days: 30));
-    final viewer = await _fetch(from: now.subtract(maxWindow), to: now);
-    final repos = parseRepos(viewer);
 
-    // The repos tab has always rendered a "N didn't count" badge, and against
-    // real GitHub data it never once appeared: nothing populated the field.
-    try {
-      final branches = (await _commitActivity(viewer, since)).branches;
-      final byRepo = (await _uncountedPushes(
-        viewer['login'] as String,
-        branches,
-      )).byRepo;
-      if (byRepo.isEmpty) return repos;
-      return [
-        for (final r in repos)
-          if (byRepo[r.name] case final n?) r.withUncounted(n) else r,
-      ];
-    } catch (_) {
-      // The badge is a bonus; the list is not.
-      return repos;
+    // Merged by name across windows: counts add up, and the metadata comes
+    // from whichever window saw the repository last, so a repo that went
+    // private this year is reported as private.
+    final byName = <String, RepoContribution>{};
+    for (final window in _windows(now.subtract(repoWindow), now)) {
+      final viewer = await _fetch(from: window.from, to: window.to);
+      for (final repo in parseRepos(viewer)) {
+        final earlier = byName[repo.name];
+        byName[repo.name] = earlier == null
+            ? repo
+            : RepoContribution(
+                name: repo.name,
+                contributionCount:
+                    earlier.contributionCount + repo.contributionCount,
+                lastActivityAt: repo.lastActivityAt.isAfter(
+                      earlier.lastActivityAt,
+                    )
+                    ? repo.lastActivityAt
+                    : earlier.lastActivityAt,
+                isPrivate: repo.isPrivate,
+                isFork: repo.isFork,
+                primaryLanguage: repo.primaryLanguage,
+              );
+      }
     }
+
+    return byName.values.toList()
+      ..sort((a, b) => b.contributionCount.compareTo(a.contributionCount));
   }
 
   @override

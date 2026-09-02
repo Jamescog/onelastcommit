@@ -16,8 +16,6 @@ class ContributionActivity extends Equatable {
     required this.occurredAt,
     this.count = 1,
     this.title,
-    this.counted = true,
-    this.branch,
     this.isPrivate = false,
     this.sha,
     this.additions,
@@ -34,17 +32,6 @@ class ContributionActivity extends Equatable {
 
   /// Issue or pull request title. Null for grouped commit contributions.
   final String? title;
-
-  /// Whether this earned a square.
-  ///
-  /// False for pushes to non-default branches, pushes to forks, and commits
-  /// authored from an email not tied to the account. Surfacing this is what
-  /// lets someone find out why a streak broke on a day they were working.
-  final bool counted;
-
-  /// Only known for push-derived activity, and only when it did not count —
-  /// it is the explanation, not decoration.
-  final String? branch;
 
   final bool isPrivate;
 
@@ -66,8 +53,6 @@ class ContributionActivity extends Equatable {
     occurredAt,
     count,
     title,
-    counted,
-    branch,
     isPrivate,
     sha,
     additions,

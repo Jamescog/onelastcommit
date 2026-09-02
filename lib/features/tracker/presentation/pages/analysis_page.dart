@@ -289,7 +289,6 @@ class _Composition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final i = insights;
-    final t = context.tokens;
     final total = i.composition.values.fold<int>(0, (a, b) => a + b);
 
     return Column(
@@ -313,26 +312,6 @@ class _Composition extends StatelessWidget {
                     total: total,
                   ),
                 ),
-              if (i.uncountedPushes > 0) ...[
-                Divider(color: t.border, height: AppSpacing.xl),
-                Row(
-                  children: [
-                    Icon(Icons.block, size: 14, color: t.warning),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        i.uncountedPushes == 1
-                            ? 'At least 1 public push earned no square'
-                            : 'At least ${i.uncountedPushes} public pushes '
-                                  'earned no square',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: t.warning),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),

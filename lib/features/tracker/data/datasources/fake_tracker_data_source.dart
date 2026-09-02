@@ -39,7 +39,7 @@ class FakeTrackerDataSource implements TrackerDataSource {
     'docs: explain why push events are the wrong signal',
     'perf: batch calendar writes into one transaction',
     'fix: settings bloc no longer spins forever on cache failure',
-    'feat: surface uncounted pushes on the repos tab',
+    'feat: list two years of repositories',
   ];
 
   static const _issueTitles = [
@@ -133,11 +133,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
       final date = _dayUtc(ago);
       final count = _countFor(ago, shape, rand, date);
 
-      // A slice of pushed work never earns a square: feature branches, forks,
-      // commits from an unregistered email. This is the gap the app exists to
-      // surface, so the fake has to contain it.
-      final uncounted = rand.nextInt(10) == 0 ? 1 + rand.nextInt(2) : 0;
-
       days.add(
         ContributionDay(
           date: utcDateLabel(date),
@@ -149,7 +144,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
           lastContributionAt: count == 0
               ? null
               : date.add(Duration(hours: 19 + rand.nextInt(5))),
-          uncountedPushes: uncounted,
         ),
       );
     }
@@ -213,7 +207,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
 
     for (var i = items.length; i < limit; i++) {
       final type = ContributionType.values[rand.nextInt(4)];
-      final counted = rand.nextInt(8) != 0;
       items.add(
         ContributionActivity(
           id: 'past-$i',
@@ -226,8 +219,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
           title: type == ContributionType.commit
               ? _commitMessages[rand.nextInt(_commitMessages.length)]
               : _issueTitles[rand.nextInt(_issueTitles.length)],
-          counted: counted,
-          branch: counted ? null : 'feature/refactor-tokens',
           isPrivate: rand.nextInt(5) == 0,
         ),
       );
@@ -247,7 +238,6 @@ class FakeTrackerDataSource implements TrackerDataSource {
           name: _repoNames[i],
           contributionCount: 120 - i * 21 + rand.nextInt(12),
           lastActivityAt: DateTime.now().subtract(Duration(hours: i * 9 + 2)),
-          uncountedPushes: i == 2 ? 14 : rand.nextInt(3),
           isPrivate: i >= 3,
           isFork: i == 2,
           primaryLanguage: const [

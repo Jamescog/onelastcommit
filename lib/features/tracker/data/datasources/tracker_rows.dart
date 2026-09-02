@@ -22,8 +22,6 @@ class TrackerRows {
     'level': d.level,
     'first_contribution_at': _iso(d.firstContributionAt),
     'last_contribution_at': _iso(d.lastContributionAt),
-    'counted_pushes': 0,
-    'uncounted_pushes': d.uncountedPushes,
     'taken_at': _iso(takenAt),
   };
 
@@ -33,7 +31,6 @@ class TrackerRows {
     level: r['level']! as int,
     firstContributionAt: _date(r['first_contribution_at']),
     lastContributionAt: _date(r['last_contribution_at']),
-    uncountedPushes: (r['uncounted_pushes'] as int?) ?? 0,
   );
 
   // --- contribution_activity ---
@@ -45,8 +42,6 @@ class TrackerRows {
     'occurred_at': _iso(a.occurredAt),
     'count': a.count,
     'title': a.title,
-    'counted': a.counted ? 1 : 0,
-    'branch': a.branch,
     'is_private': a.isPrivate ? 1 : 0,
     'sha': a.sha,
     'additions': a.additions,
@@ -61,8 +56,6 @@ class TrackerRows {
         occurredAt: _date(r['occurred_at'])!,
         count: (r['count'] as int?) ?? 1,
         title: r['title'] as String?,
-        counted: (r['counted'] as int?) != 0,
-        branch: r['branch'] as String?,
         isPrivate: (r['is_private'] as int?) == 1,
         sha: r['sha'] as String?,
         additions: r['additions'] as int?,
@@ -74,7 +67,6 @@ class TrackerRows {
   static Map<String, Object?> repoToRow(RepoContribution r) => {
     'repo_name': r.name,
     'contribution_count': r.contributionCount,
-    'uncounted_pushes': r.uncountedPushes,
     'last_activity_at': _iso(r.lastActivityAt),
     'is_private': r.isPrivate ? 1 : 0,
     'is_fork': r.isFork ? 1 : 0,
@@ -86,7 +78,6 @@ class TrackerRows {
         name: r['repo_name']! as String,
         contributionCount: (r['contribution_count'] as int?) ?? 0,
         lastActivityAt: _date(r['last_activity_at'])!,
-        uncountedPushes: (r['uncounted_pushes'] as int?) ?? 0,
         isPrivate: (r['is_private'] as int?) == 1,
         isFork: (r['is_fork'] as int?) == 1,
         primaryLanguage: r['primary_language'] as String?,
