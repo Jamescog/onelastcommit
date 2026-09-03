@@ -46,10 +46,9 @@ class AppPill extends StatelessWidget {
             Icon(icon, size: 12, color: c.foreground),
             const SizedBox(width: AppSpacing.xs),
           ],
-          // Constrained on purpose: activity_row builds
-          // "Didn't count · feature/some-very-long-branch-name", and an
-          // unbounded Text inside a mainAxisSize.min Row overflowed the card
-          // horizontally at any text scale.
+          // Constrained on purpose: a long label — a language name at a large
+          // text scale, a branch name — inside a mainAxisSize.min Row
+          // overflowed the card horizontally without this.
           Flexible(
             child: Text(
               label,

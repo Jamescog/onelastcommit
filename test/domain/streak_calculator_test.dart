@@ -253,7 +253,6 @@ void main() {
       );
 
       expect(insights.consistency, 0);
-      expect(insights.uncountedPushes, 0);
       expect(insights.peakHour, isNull);
     });
   });

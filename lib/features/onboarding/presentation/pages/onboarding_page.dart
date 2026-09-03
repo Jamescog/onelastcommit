@@ -41,13 +41,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
           'silent night.',
       icon: Icons.notifications_active_outlined,
     ),
-    _Slide(
-      title: 'Including the work that never counted',
-      body:
-          'Pushes to a branch your repository does not count earn no square. '
-          'This is the app that tells you where they went.',
-      icon: Icons.query_stats_outlined,
-    ),
   ];
 
   @override

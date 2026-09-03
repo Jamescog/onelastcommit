@@ -161,11 +161,8 @@ class _DetailLine extends StatelessWidget {
         style: style?.copyWith(color: t.textSecondary),
       );
     }
-    final uncounted = day.uncountedPushes > 0
-        ? " · ${day.uncountedPushes} didn't count"
-        : '';
     return Text(
-      '${day.count} on ${format.format(DateTime.parse(day.date))}$uncounted',
+      '${day.count} on ${format.format(DateTime.parse(day.date))}',
       style: style?.copyWith(color: t.textPrimary),
     );
   }

@@ -303,14 +303,7 @@ class _ActivityList extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    if (!a.counted)
-                      AppPill(
-                        label: a.branch ?? 'uncounted',
-                        tone: AppTone.warning,
-                        icon: Icons.block,
-                      )
-                    else
-                      AppPill(label: a.type.name, tone: AppTone.neutral),
+                    AppPill(label: a.type.name, tone: AppTone.neutral),
                   ],
                 ),
               ),
@@ -340,7 +333,6 @@ class _RepoList extends StatelessWidget {
             for (final r in repos)
               AppCard(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                tone: r.hasUncountedWork ? AppTone.warning : null,
                 child: Row(
                   children: [
                     Expanded(

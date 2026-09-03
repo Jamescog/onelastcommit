@@ -187,6 +187,9 @@ class TrackerLocalDataSourceImpl implements TrackerLocalDataSource {
   Future<void> saveRepos(List<RepoContribution> repos) async {
     final db = await _db;
     await db.transaction((txn) async {
+      // The list is a snapshot of a window, not an append-only log: a
+      // repository that drops out of the window has to drop out of the tab.
+      await txn.delete('repo_activity');
       for (final r in repos) {
         await txn.insert(
           'repo_activity',

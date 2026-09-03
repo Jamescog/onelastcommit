@@ -13,7 +13,6 @@ class ContributionDay extends Equatable {
     required this.level,
     this.firstContributionAt,
     this.lastContributionAt,
-    this.uncountedPushes = 0,
   });
 
   /// Date-only, in GitHub's labelling. Never construct this from a local
@@ -31,18 +30,7 @@ class ContributionDay extends Equatable {
   final DateTime? firstContributionAt;
   final DateTime? lastContributionAt;
 
-  /// Pushes seen in the public events feed that went to a branch this
-  /// repository does not count. The diagnostic no other tool shows — see
-  /// PLAN.md section 1 — but a floor, never a total: private work never
-  /// reaches the feed, and the feed is thin even for public work.
-  final int uncountedPushes;
-
   bool get hasContributions => count > 0;
-
-  /// True when work was pushed but none of it counted. The single most
-  /// useful thing to surface to a user whose streak broke while they were
-  /// committing every day.
-  bool get hasUncountedWorkOnly => count == 0 && uncountedPushes > 0;
 
   @override
   List<Object?> get props => [
@@ -51,6 +39,5 @@ class ContributionDay extends Equatable {
     level,
     firstContributionAt,
     lastContributionAt,
-    uncountedPushes,
   ];
 }

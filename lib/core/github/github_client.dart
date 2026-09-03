@@ -34,7 +34,6 @@ class GitHubClient {
   final GitHubCredentials credentials;
 
   static const _graphql = 'https://api.github.com/graphql';
-  static const _rest = 'https://api.github.com';
 
   RateLimitStatus _rateLimit = const RateLimitStatus();
   RateLimitStatus get rateLimit => _rateLimit;
@@ -108,23 +107,6 @@ class GitHubClient {
       throw const GitHubBadResponse('Response carried no data');
     }
     return data;
-  }
-
-  /// Runs a REST GET. [etag] enables conditional requests; a 304 returns null,
-  /// which callers read as "nothing changed" rather than "nothing there".
-  Future<List<dynamic>?> getList(String path, {String? etag}) async {
-    final response = await _send(
-      () async => client.get(
-        Uri.parse('$_rest$path'),
-        headers: {...await _headers(), 'If-None-Match': ?etag},
-      ),
-    );
-    if (response.statusCode == 304) return null;
-    final decoded = jsonDecode(response.body);
-    if (decoded is! List) {
-      throw const GitHubBadResponse('Expected a list');
-    }
-    return decoded;
   }
 
   Future<http.Response> _send(

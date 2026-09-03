@@ -64,64 +64,51 @@ class _Loaded extends StatelessWidget {
   Widget build(BuildContext context) {
     final repos = state.repos;
     final streak = state.streak;
-    final problem = repos.where((r) => r.hasUncountedWork).toList();
     final top = repos.isEmpty
         ? 1
         : repos.map((r) => r.contributionCount).reduce((a, b) => a > b ? a : b);
 
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        if (streak.isUncertain) ...[
-          StalenessBanner(
-            isError: streak.freshness == DataFreshness.error,
-            checkedAt: streak.checkedAt,
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        // Repos silently eating contributions come first — this is the answer
-        // to "why did my streak break", so it should not be scrolled to.
-        if (problem.isNotEmpty) ...[
-          const SectionHeader(
-            title: 'Work that never counted',
-            subtitle:
-                'Recent public pushes that earned no square. GitHub '
-                'does not expose enough to make this complete — private '
-                'work never appears here.',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ...problem.map(
-            (r) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _RepoCard(repo: r, max: top, highlight: true),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
-        const SectionHeader(title: 'All repositories'),
-        const SizedBox(height: AppSpacing.md),
-        ...repos.map(
-          (r) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _RepoCard(repo: r, max: top),
-          ),
+    // The header and banner are items in the same list as the cards, so a
+    // hundred repositories scroll as one surface and only the visible cards
+    // are built.
+    final lead = <Widget>[
+      if (streak.isUncertain) ...[
+        StalenessBanner(
+          isError: streak.freshness == DataFreshness.error,
+          checkedAt: streak.checkedAt,
         ),
-        const SizedBox(height: AppSpacing.massive),
+        const SizedBox(height: AppSpacing.md),
       ],
+      const SectionHeader(
+        title: 'Repositories you committed to',
+        subtitle: 'Last two years, by contribution count',
+      ),
+      const SizedBox(height: AppSpacing.md),
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: lead.length + repos.length + 1,
+      itemBuilder: (context, index) {
+        if (index < lead.length) return lead[index];
+        final i = index - lead.length;
+        if (i == repos.length) {
+          return const SizedBox(height: AppSpacing.massive);
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _RepoCard(repo: repos[i], max: top),
+        );
+      },
     );
   }
 }
 
 class _RepoCard extends StatelessWidget {
-  const _RepoCard({
-    required this.repo,
-    required this.max,
-    this.highlight = false,
-  });
+  const _RepoCard({required this.repo, required this.max});
 
   final RepoContribution repo;
   final int max;
-  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -130,8 +117,6 @@ class _RepoCard extends StatelessWidget {
     final share = max == 0 ? 0.0 : repo.contributionCount / max;
 
     return AppCard(
-      tone: highlight ? AppTone.warning : null,
-      accentEdge: highlight,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +144,7 @@ class _RepoCard extends StatelessWidget {
             label:
                 '${repo.contributionCount} contributions, share of the top '
                 'repository',
-            color: highlight ? t.warning : t.success,
+            color: t.success,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -175,26 +160,9 @@ class _RepoCard extends StatelessWidget {
                   icon: Icons.lock_outline,
                 ),
               if (repo.isFork)
-                const AppPill(
-                  label: 'Fork',
-                  tone: AppTone.warning,
-                  icon: Icons.call_split,
-                ),
-              if (repo.hasUncountedWork)
-                AppPill(
-                  label: "${repo.uncountedPushes} didn't count",
-                  tone: AppTone.warning,
-                  icon: Icons.block,
-                ),
+                const AppPill(label: 'Fork', icon: Icons.call_split),
             ],
           ),
-          if (repo.isFork) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Commits in a fork never appear on your contribution graph.',
-              style: text.bodySmall?.copyWith(color: t.textSecondary),
-            ),
-          ],
         ],
       ),
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
-import '../../../../../core/theme/app_tokens.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/entities/entities.dart';
 import '../../bloc/tracker_bloc.dart';
@@ -49,7 +48,6 @@ class _Loaded extends StatelessWidget {
     final recent = days.length > 90 ? days.sublist(days.length - 90) : days;
     final total = days.fold<int>(0, (s, d) => s + d.count);
     final active = days.where((d) => d.hasContributions).length;
-    final uncounted = days.fold<int>(0, (s, d) => s + d.uncountedPushes);
     final trend = TrendChart(
       values: [for (final d in recent) d.count],
       label: 'Daily contributions, last 90 days',
@@ -144,37 +142,6 @@ class _Loaded extends StatelessWidget {
           ),
         ),
 
-        if (uncounted > 0) ...[
-          const SizedBox(height: AppSpacing.lg),
-          // The number no other GitHub client will show you.
-          AppCard(
-            tone: AppTone.warning,
-            accentEdge: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  uncounted == 1
-                      ? 'At least 1 public push never counted'
-                      : 'At least $uncounted public pushes never counted',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: context.tokens.warning,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Pushes to a branch the repository does not count earn no '
-                  'square. This is a floor, not a total — private work never '
-                  'reaches the public feed we read this from. Check the Repos '
-                  'tab to see where.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.tokens.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
         const SizedBox(height: AppSpacing.massive),
       ],
     );
